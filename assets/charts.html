@@ -1,0 +1,67 @@
+<!-- Switches every Plotly chart between its light and dark colours. Source of truth for chart colours: assets/palette.json -->
+<script>
+// TR Power Lab: switch every Plotly chart between its light and dark colours.
+// Each trace carries meta.light / meta.dark (set by scripts/chart_style.py).
+(function () {
+  const SURF = {
+    light: { surface: "#F7F9FA", ink: "#15212A", muted: "#5A6A75", grid: "#E1E7EA", axis: "#C3CDD2" },
+    dark:  { surface: "#0E161B", ink: "#E3EBEF", muted: "#94A5AF", grid: "#1E2A31", axis: "#33434C" },
+  };
+  const isDark = () => document.body.classList.contains("quarto-dark");
+
+  function paint(gd) {
+    if (!window.Plotly || !gd._fullLayout || !gd.data) return;   // chart not drawn yet
+    const mode = isDark() ? "dark" : "light";
+    const s = SURF[mode];
+
+    // One update call per chart: per-trace arrays, undefined = leave as is.
+    const t = { "line.color": [], "fillcolor": [], "fillpattern.fgcolor": [], "marker.color": [], "marker.line.color": [] };
+    gd.data.forEach((tr) => {
+      const m = tr.meta || {};
+      const c = m.light ? m[mode] : undefined;
+      const area = m.kind === "area", bar = m.kind === "bar";
+      t["line.color"].push(!c ? undefined : area ? s.surface : bar ? undefined : c);
+      t["fillcolor"].push(area && !m.hatch ? c : undefined);
+      t["fillpattern.fgcolor"].push(area && m.hatch ? c : undefined);
+      t["marker.color"].push(c && !area ? c : undefined);
+      t["marker.line.color"].push(bar ? s.surface : undefined);
+    });
+
+    const lay = {
+      "font.color": s.ink, "legend.font.color": s.muted,
+      "xaxis.linecolor": s.axis, "xaxis.tickcolor": s.axis, "xaxis.tickfont.color": s.muted,
+      "yaxis.gridcolor": s.grid, "yaxis.tickfont.color": s.muted, "yaxis.title.font.color": s.muted,
+    };
+    const narrow = gd.clientWidth < 600;
+    (gd.layout.annotations || []).forEach((a, i) => {
+      lay[`annotations[${i}].font.color`] = a.name === "direct-label" ? s.ink : s.muted;
+      if (a.name === "event") {
+        // On narrow screens event labels would overlap: keep the marker, show the title on hover.
+        a._label = a._label ?? a.text;
+        const full = a._label !== "▾";
+        lay[`annotations[${i}].text`] = narrow || !full ? "▾" : a._label;
+        lay[`annotations[${i}].textangle`] = narrow || !full ? 0 : -90;
+        lay[`annotations[${i}].xanchor`] = narrow || !full ? "center" : "right";
+      }
+    });
+    (gd.layout.shapes || []).forEach((_, i) => { lay[`shapes[${i}].line.color`] = s.axis; });
+    // Buttons (updatemenus) are styled once in Python with colours that read in both modes:
+    // changing them here breaks Plotly's redraw.
+    if (gd.layout.xaxis && gd.layout.xaxis.rangeselector) {
+      lay["xaxis.rangeselector.font.color"] = s.ink;
+      lay["xaxis.rangeselector.bordercolor"] = s.axis;
+      lay["xaxis.rangeselector.activecolor"] = s.grid;
+    }
+    Plotly.update(gd, t, lay);
+  }
+
+  const paintAll = () => document.querySelectorAll(".js-plotly-plot").forEach((gd) => {
+    try { paint(gd); } catch (e) { console.warn("chart theme", e); }
+  });
+  // Charts finish drawing shortly after the page loads; paint then, and once more as a safety net.
+  window.addEventListener("load", () => { setTimeout(paintAll, 100); setTimeout(paintAll, 1200); });
+  let timer;
+  window.addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(paintAll, 200); });
+  new MutationObserver(paintAll).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+})();
+</script>
