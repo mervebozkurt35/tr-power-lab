@@ -28,6 +28,9 @@ m = m.set_index("month")
 events = pd.read_csv(ROOT / "data/events.csv")
 
 d = d[d["hours_with_price"] >= 20]            # skip days with too few published hours
+VOL_FROM = pd.Timestamp("2017-12-01")           # GÖP and bilateral volumes are published from here
+for df in (d, m):
+    df.loc[df.index < VOL_FROM, ["gop_mwh", "bilateral_mwh"]] = float("nan")
 last = d.index.max()
 fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
 ```
@@ -56,26 +59,27 @@ HTML('<div class="tile-grid">' + "".join(
 
 ## Daily, weekly and monthly prices
 
-PTF is the hourly price set in the day-ahead market (GÖP). SMF is the price of the last balancing instruction the system operator used in each hour (DGP). Both are averages of hourly prices in Turkish lira. Use the buttons to change the time step and the range.
+PTF is the hourly price set in the day-ahead market (GÖP). AOF is the volume-weighted average price of trades in the intraday market (GİP), from July 2015. SMF is the price of the last balancing instruction the system operator used in each hour (DGP). All three are averages of hourly prices in Turkish lira. Use the buttons to change the time step and the range; click a name in the legend to hide or show a line.
 
 ```{python}
 #| label: price-chart
 import plotly.graph_objects as go
 
-weekly = d[["ptf_mean", "smf_mean"]].resample("W-MON", label="left", closed="left").mean()
-monthly = m[["ptf_mean", "smf_mean"]]
-views = {"Daily": d[["ptf_mean", "smf_mean"]], "Weekly": weekly, "Monthly": monthly}
+cols3 = ["ptf_mean", "smf_mean", "aof_mean"]
+weekly = d[cols3].resample("W-MON", label="left", closed="left").mean()
+monthly = m[cols3]
+views = {"Daily": d[cols3], "Weekly": weekly, "Monthly": monthly}
 
 fig = cs.figure(None, "TL/MWh", height=460)
 for i, (name, df) in enumerate(views.items()):
-    for key, col in (("ptf", "ptf_mean"), ("smf", "smf_mean")):
+    for key, col in (("ptf", "ptf_mean"), ("smf", "smf_mean"), ("aof", "aof_mean")):
         cs.add_line(fig, df.index, df[col], "prices", key, unit=" TL/MWh", end_label=False)
         fig.data[-1].update(visible=(name == "Weekly"), legendgroup=key, showlegend=(name == "Weekly"))
 
 n = len(fig.data)
 buttons = []
 for i, name in enumerate(views):
-    vis = [j // 2 == i for j in range(n)]
+    vis = [j // 3 == i for j in range(n)]
     buttons.append(dict(label=name, method="update", args=[{"visible": vis, "showlegend": vis}]))
 fig.update_layout(
     updatemenus=[dict(type="buttons", direction="right", buttons=buttons, active=1, x=0, y=1.04,
@@ -150,13 +154,14 @@ agg = pd.DataFrame({
     "PTF (EUR/MWh)": (y["ptf_eur_mean"] * h).groupby(y["year"]).sum() / h.where(y["ptf_eur_mean"].notna()).groupby(y["year"]).sum(),
     "PTF (USD/MWh)": (y["ptf_usd_mean"] * h).groupby(y["year"]).sum() / h.where(y["ptf_usd_mean"].notna()).groupby(y["year"]).sum(),
     "SMF (TL/MWh)": (y["smf_mean"] * h).groupby(y["year"]).sum() / h.where(y["smf_mean"].notna()).groupby(y["year"]).sum(),
+    "AOF (TL/MWh)": (y["aof_mean"] * h).groupby(y["year"]).sum() / h.where(y["aof_mean"].notna()).groupby(y["year"]).sum(),
     "Hours system short": (y["deficit_share"] * h).groupby(y["year"]).sum() / h.where(y["deficit_share"].notna()).groupby(y["year"]).sum(),
 })
 agg = agg.sort_index(ascending=False)
 partial = {agg.index.max(): f"{agg.index.max()} (to {last:%d %b})", agg.index.min(): f"{agg.index.min()} (from Nov)"}
 agg.index = [partial.get(i, str(i)) for i in agg.index]
 out = agg.copy()
-for c in ["PTF (TL/MWh)", "SMF (TL/MWh)"]:
+for c in ["PTF (TL/MWh)", "SMF (TL/MWh)", "AOF (TL/MWh)"]:
     out[c] = agg[c].map(lambda v: fmt(v))
 for c in ["PTF (EUR/MWh)", "PTF (USD/MWh)"]:
     out[c] = agg[c].map(lambda v: fmt(v, 1))
@@ -164,7 +169,7 @@ out["Hours system short"] = agg["Hours system short"].map(lambda v: "–" if pd.
 Markdown(out.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(out.columns)))
 ```
 
-Yearly figures are simple averages of hourly prices: every hour counts the same. SMF starts in April 2014 on the transparency platform. "Hours system short" is the share of hours in which the system needed extra energy (Enerji Açığı), so balancing instructions were mostly to increase output.
+Yearly figures are simple averages of hourly prices: every hour counts the same. SMF starts in April 2014 on the transparency platform, AOF in July 2015 when the intraday market opened. "Hours system short" is the share of hours in which the system needed extra energy (Enerji Açığı), so balancing instructions were mostly to increase output.
 
 ### Download the data
 
@@ -172,13 +177,13 @@ Yearly figures are simple averages of hourly prices: every hour counts the same.
 #| label: downloads
 cols = {"ptf_mean": "ptf_try_mwh", "ptf_cons_weighted": "ptf_consumption_weighted_try_mwh",
         "ptf_min": "ptf_min_try_mwh", "ptf_max": "ptf_max_try_mwh", "ptf_eur_mean": "ptf_eur_mwh",
-        "ptf_usd_mean": "ptf_usd_mwh", "smf_mean": "smf_try_mwh",
+        "ptf_usd_mean": "ptf_usd_mwh", "smf_mean": "smf_try_mwh", "aof_mean": "aof_try_mwh",
         "deficit_share": "share_hours_system_short", "surplus_share": "share_hours_system_long"}
 yearly = agg.copy()
 yearly.index = [int(str(i)[:4]) for i in yearly.index]
 yearly = yearly.rename_axis("year").reset_index().rename(columns={
     "PTF (TL/MWh)": "ptf_try_mwh", "PTF (EUR/MWh)": "ptf_eur_mwh", "PTF (USD/MWh)": "ptf_usd_mwh",
-    "SMF (TL/MWh)": "smf_try_mwh", "Hours system short": "share_hours_system_short"}).round(4)
+    "SMF (TL/MWh)": "smf_try_mwh", "AOF (TL/MWh)": "aof_try_mwh", "Hours system short": "share_hours_system_short"}).round(4)
 monthly_dl = m[list(cols)].rename(columns=cols).round(4)
 monthly_dl.index = monthly_dl.index.strftime("%Y-%m")
 daily_dl = d[list(cols)].rename(columns=cols).round(4)
@@ -195,10 +200,69 @@ Prices are averages of EPİAŞ hourly data, in Turkish lira, euros or US dollars
 
 ## Where electricity is traded
 
-::: {.callout-note}
-## Coming in November 2026
-The share of electricity traded in the day-ahead market (GÖP), the intraday market (GİP) and through bilateral contracts, daily, monthly and yearly, next to the prices each market sets.
-:::
+Electricity changes hands in three places: bilateral contracts (İA) agreed directly between companies, the day-ahead market (GÖP) run by EPİAŞ, and the intraday market (GİP), where positions are adjusted up to shortly before delivery. Bilateral volume counts every contract, including resales between traders, so traded volume is larger than consumption. Volumes are published from December 2017.
+
+```{python}
+#| label: market-chart
+mk = m.loc[VOL_FROM:, ["bilateral_mwh", "gop_mwh", "idm_mwh", "consumption_mwh", "hours_with_price"]]
+mk = mk[mk["hours_with_price"] >= mk.index.days_in_month * 24 - 1]       # full months only
+keys = [("bilateral", "bilateral_mwh"), ("gop", "gop_mwh"), ("gip", "idm_mwh")]
+figm = cs.figure(None, "TWh per month", height=440)
+for key, col in keys:
+    cs.add_area(figm, mk.index, mk[col] / 1e6, "markets", key, unit=" TWh", hover_fmt=",.1f")
+twh_hover = [t.hovertemplate for t in figm.data]
+pct_hover = [f"%{{y:.1f}}%<extra>{t.name}</extra>" for t in figm.data]
+figm.update_layout(
+    margin=dict(t=48), legend=dict(traceorder="reversed"),
+    updatemenus=[dict(type="buttons", direction="right", active=0, x=0, y=1.03, xanchor="left", yanchor="bottom",
+                      buttons=[dict(label="TWh", method="update",
+                                    args=[{"groupnorm": [""] * 3, "hovertemplate": twh_hover},
+                                          {"yaxis.title.text": "TWh per month", "yaxis.ticksuffix": ""}]),
+                               dict(label="Share", method="update",
+                                    args=[{"groupnorm": ["percent"] * 3, "hovertemplate": pct_hover},
+                                          {"yaxis.title.text": "Share of traded volume", "yaxis.ticksuffix": "%"}])])],
+)
+cs.style_controls(figm)
+cs.show(figm)
+```
+
+```{python}
+#| label: market-table
+vy = m.loc[VOL_FROM:, ["bilateral_mwh", "gop_mwh", "idm_mwh", "consumption_mwh"]]
+vy = vy.groupby(vy.index.year).sum(min_count=1) / 1e6
+traded = vy[["bilateral_mwh", "gop_mwh", "idm_mwh"]].sum(axis=1)
+vt = pd.DataFrame({
+    "Bilateral (TWh)": vy["bilateral_mwh"].map(lambda v: fmt(v, 1)),
+    "GÖP (TWh)": vy["gop_mwh"].map(lambda v: fmt(v, 1)),
+    "GİP (TWh)": vy["idm_mwh"].map(lambda v: fmt(v, 1)),
+    "Bilateral share": (vy["bilateral_mwh"] / traded).map(lambda v: f"{v:.0%}"),
+    "GÖP share": (vy["gop_mwh"] / traded).map(lambda v: f"{v:.0%}"),
+    "GİP share": (vy["idm_mwh"] / traded).map(lambda v: f"{v:.1%}"),
+    "Traded ÷ consumption": (traded / vy["consumption_mwh"]).map(lambda v: f"{v:.2f}×"),
+}).sort_index(ascending=False)
+vt.index = [f"{y} (to {last:%d %b})" if y == last.year else (f"{y} (Dec only)" if y == 2017 else str(y)) for y in vt.index]
+Markdown(vt.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(vt.columns)))
+```
+
+The day-ahead market is where the reference price is set, but most electricity is sold through bilateral contracts. The intraday market is small: a few percent of traded volume, used to correct positions as forecasts change.
+
+```{python}
+#| label: market-downloads
+vcols = {"bilateral_mwh": "bilateral_mwh", "gop_mwh": "gop_matched_mwh", "idm_mwh": "gip_matched_mwh",
+         "bilateral_share": "bilateral_share", "gop_share": "gop_share", "idm_share": "gip_share",
+         "consumption_mwh": "consumption_reported_mwh"}
+mv = m.loc[VOL_FROM:, list(vcols)].rename(columns=vcols).round(4)
+mv.index = mv.index.strftime("%Y-%m")
+dv = d.loc[VOL_FROM:, list(vcols)].rename(columns=vcols).round(4)
+dv.index = dv.index.strftime("%Y-%m-%d")
+yv = vy.rename(columns={"bilateral_mwh": "bilateral_twh", "gop_mwh": "gop_matched_twh", "idm_mwh": "gip_matched_twh",
+                        "consumption_mwh": "consumption_reported_twh"}).round(3)
+HTML(
+    cs.download_link(yv.rename_axis("year").reset_index(), f"trpowerlab_market_volumes_yearly_{stamp}.csv", "Yearly volumes (CSV)")
+    + cs.download_link(mv.rename_axis("month").reset_index(), f"trpowerlab_market_volumes_monthly_{stamp}.csv", "Monthly volumes (CSV)")
+    + cs.download_link(dv.rename_axis("date").reset_index(), f"trpowerlab_market_volumes_daily_{stamp}.csv", "Daily volumes (CSV)")
+)
+```
 
 ## Notes
 

@@ -69,6 +69,7 @@ GEN_ORDER = ["gas", "lignite", "imported_coal", "hard_coal", "hydro_dam", "hydro
 GEN_COMPLETE_FROM = "2014-01-01"        # real-time generation adds plants gradually through 2013
 NET_IMPORTS_FROM = "2018-01-01"         # cross-border flows are reported as 0 before 2018
 EMBEDDED_FROM = "2020-12-30"            # real-time consumption includes unmetered generation from here
+VOLUMES_FROM = "2017-12-01"             # GÖP and bilateral volumes are published from here (0 before)
 
 DEFICIT = "Enerji Açığı"   # system short: balancing ordered up
 SURPLUS = "Enerji Fazlası"  # system long: balancing ordered down
@@ -448,6 +449,7 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame, e
                                ("idm", "idm_matched", "idm"), ("wap", "aof", "aof")):
         hourly[new_col] = extra[name][col] if name in extra else float("nan")
         hourly[new_col] = pd.to_numeric(hourly[new_col], errors="coerce")
+    hourly.loc[hourly.index < pd.Timestamp(VOLUMES_FROM, tz=TZ), ["gop", "bilateral"]] = float("nan")
     # Price volatility helpers
     hourly["smf_ptf_gap"] = hourly["smf"] - hourly["ptf"]
     hourly["gap_when_short"] = hourly["smf_ptf_gap"].where(hourly["system_direction"] == DEFICIT)
@@ -550,6 +552,9 @@ def write_report(start: date, end: date) -> None:
         "  so solar output and its share are understated. Real-time consumption does include the demand it serves.",
         "  `embedded_gen_est` = consumption - metered generation - net imports estimates the missing generation.",
         "- `net_imports`: positive = net imports, negative = net exports. Reported as 0 before 2018, so left empty there.",
+        f"- GÖP and bilateral volumes are published from {VOLUMES_FROM} (bilateral shows 0 before), so both are left empty",
+        "  before that date. Bilateral volume counts every contract, including resales between traders, so total",
+        "  traded volume is larger than consumption.",
         f"- Real-time generation is left empty before {GEN_COMPLETE_FROM}: EPİAŞ added plants to it gradually during 2013.",
         f"- Real-time consumption changes definition on {EMBEDDED_FROM}: from then on it includes demand met by",
         "  unmetered generation (about 3% of consumption at the start, rising since). Before that it equals metered",

@@ -1,17 +1,171 @@
 ---
 title: "Price volatility"
 subtitle: "How much prices move within the day and between markets"
+execute:
+  echo: false
+  freeze: false
 ---
 
-::: {.callout-note}
-## Coming in November 2026
-This page will measure how volatile Türkiye's electricity prices are, from the same hourly data as the [prices](prices.qmd) page.
-:::
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+import plotly.graph_objects as go
+from IPython.display import HTML, Markdown
 
-## What this page will show
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
 
-- **Daily price spread:** the gap between the highest and lowest hourly PTF of each day. It is a first estimate of what a battery could earn from one charge and discharge per day.
-- **Volatility within the day:** how far hourly prices move around the daily average.
-- **Balancing versus day-ahead:** the gap between SMF and PTF, split by whether the system was short or long. It shows what it costs to be out of balance.
-- **Hours at the limits:** how many hours each month the price sat at the cap or at zero.
-- **Intraday market (GİP):** the spread of intraday trade prices around their volume-weighted median for each contract, a measure of how much a perfectly informed trader could have earned. This needs the intraday trade data, which is added later.
+d = pd.read_csv(ROOT / "data/processed/core_daily.csv", parse_dates=["date"]).set_index("date")
+m = pd.read_csv(ROOT / "data/processed/core_monthly.csv", parse_dates=["month"]).set_index("month")
+d = d[d["hours_with_price"] >= 20]
+last = d.index.max()
+S = cs.SURF[cs.MODE]
+fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
+
+# Exchange rate implied by EPİAŞ's own TL and EUR prices, to show lira gaps in euros.
+for df in (d, m):
+    fx = df["ptf_mean"] / df["ptf_eur_mean"].where(df["ptf_eur_mean"] > 0)
+    for col in ("smf_ptf_gap", "gap_when_short", "gap_when_long", "aof_ptf_gap", "smf_ptf_absgap"):
+        df[col + "_eur"] = df[col] / fx
+full = m["hours_with_price"] >= m.index.days_in_month * 24 - 1
+mf = m[full]
+```
+
+```{python}
+#| label: tiles
+w30 = d.loc[last - pd.Timedelta(days=29): last]
+w30_ly = d.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1)]
+y12 = d.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
+zero_ytd = d.loc[f"{last.year}-01-01":, "ptf_zero_hours"].sum()
+zero_ly = d.loc[f"{last.year - 1}-01-01": last - pd.DateOffset(years=1), "ptf_zero_hours"].sum()
+tiles = [
+    ("Daily PTF spread, last 30 days", f"{w30['ptf_spread_eur'].median():.1f} EUR/MWh",
+     f"median of daily max − min · {w30_ly['ptf_spread_eur'].median():.1f} a year earlier"),
+    ("Balancing gap, last 12 months", f"+{y12['gap_when_short_eur'].mean():.1f} / −{abs(y12['gap_when_long_eur'].mean()):.1f} EUR/MWh",
+     "SMF − PTF when the system was short / long"),
+    (f"Zero-price hours in {last.year}", f"{zero_ytd:,.0f} hours",
+     f"{zero_ly:,.0f} in the same period of {last.year - 1}"),
+]
+HTML('<div class="tile-grid">' + "".join(
+    f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
+```
+
+## Daily price spread
+
+The daily spread is the gap between the most and the least expensive hour of the day-ahead price. It is a first estimate of what a battery could earn from buying in the cheapest hour and selling in the most expensive one, before efficiency losses, fees and the limits of the battery. The second line, the standard deviation, measures how far hourly prices move around the day's average. Both are monthly averages of daily values, in euros so years can be compared.
+
+```{python}
+#| label: spread-chart
+fig = cs.figure(None, "EUR/MWh", height=420)
+cs.add_line(fig, mf.index, mf["ptf_spread_eur"], "prices", "ptf", name="Daily spread (max − min)",
+            unit=" EUR/MWh", hover_fmt=",.1f", end_label=False)
+cs.add_line(fig, mf.index, mf["ptf_std_eur"], "single", "", name="Hourly standard deviation",
+            unit=" EUR/MWh", hover_fmt=",.1f", end_label=False)
+fig.update_layout(margin=dict(t=40))
+fig.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                             dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                             dict(step="all", label="All")],
+                                    x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig)
+cs.show(fig)
+```
+
+## The cost of being out of balance
+
+When the system is short, the operator buys extra energy in the balancing market and SMF usually rises above PTF. When it is long, SMF usually falls below PTF. The gap is what a market participant risks by being out of balance in that direction: imbalance prices are built from PTF and SMF. Bars show the monthly average gap in euros, split by system direction.
+
+```{python}
+#| label: gap-chart
+fig2 = cs.figure(None, "SMF − PTF, EUR/MWh", height=420)
+g = mf.loc["2014-04-01":]
+cs.add_bar(fig2, g.index, g["gap_when_short_eur"], "balancing", "up", step=1,
+           name="System short: SMF above PTF", hover_fmt=",.1f", unit=" EUR/MWh")
+cs.add_bar(fig2, g.index, g["gap_when_long_eur"], "balancing", "down", step=1,
+           name="System long: SMF below PTF", hover_fmt=",.1f", unit=" EUR/MWh")
+fig2.update_layout(barmode="relative", bargap=0.15, margin=dict(t=40))
+fig2.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig2)
+cs.show(fig2)
+```
+
+## Intraday versus day-ahead
+
+The intraday market (GİP) trades the same hours after the day-ahead auction. Its average price (AOF) minus PTF shows whether buying later was cheaper or dearer on average. A gap close to zero means the two markets agree; persistent gaps point to forecasts that changed after the auction, for example for wind and solar.
+
+```{python}
+#| label: aof-chart
+fig3 = cs.figure(None, "AOF − PTF, EUR/MWh", height=380)
+a = mf.loc["2015-07-01":]
+cs.add_bar(fig3, a.index, a["aof_ptf_gap_eur"], "markets", "gip", name="AOF − PTF", hover_fmt=",.2f", unit=" EUR/MWh")
+fig3.update_layout(showlegend=False, bargap=0.15, margin=dict(t=16))
+cs.show(fig3)
+```
+
+## Hours at zero
+
+PTF falls to zero when supply that cannot or will not reduce output, such as run-of-river hydro, wind, solar and must-run plants, exceeds demand. Zero-price hours are a sign of surplus and of the value of storage and flexible demand.
+
+```{python}
+#| label: zero-chart
+fig4 = cs.figure(None, "Hours per month", height=360)
+cs.add_bar(fig4, mf.index, mf["ptf_zero_hours"], "single", "", name="Hours with PTF = 0", hover_fmt=",.0f", unit=" hours")
+fig4.update_layout(showlegend=False, bargap=0.15, margin=dict(t=16))
+cs.show(fig4)
+```
+
+## Yearly summary
+
+```{python}
+#| label: yearly
+yy = d.groupby(d.index.year)
+tab = pd.DataFrame({
+    "Daily spread (EUR/MWh)": yy["ptf_spread_eur"].mean().map(lambda v: fmt(v, 1)),
+    "Hourly std. dev. (EUR/MWh)": yy["ptf_std_eur"].mean().map(lambda v: fmt(v, 1)),
+    "SMF − PTF when short": yy["gap_when_short_eur"].mean().map(lambda v: fmt(v, 1)),
+    "SMF − PTF when long": yy["gap_when_long_eur"].mean().map(lambda v: fmt(v, 1)),
+    "AOF − PTF": yy["aof_ptf_gap_eur"].mean().map(lambda v: fmt(v, 2)),
+    "Zero-price hours": yy["ptf_zero_hours"].sum().map(lambda v: fmt(v)),
+}).loc[2012:].sort_index(ascending=False)
+tab = tab.apply(lambda c: c.str.replace("-", "−", regex=False))
+tab.index = [f"{y} (to {last:%d %b})" if y == last.year else str(y) for y in tab.index]
+Markdown(tab.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(tab.columns)))
+```
+
+All gaps are in EUR/MWh, converted from lira at the exchange rate implied by EPİAŞ's own lira and euro prices for each day. Yearly figures are averages of daily values; zero-price hours are totals.
+
+### Download the data
+
+```{python}
+#| label: downloads
+cols = {"ptf_spread": "ptf_daily_spread_try_mwh", "ptf_spread_eur": "ptf_daily_spread_eur_mwh",
+        "ptf_std": "ptf_hourly_std_try_mwh", "ptf_std_eur": "ptf_hourly_std_eur_mwh",
+        "smf_ptf_gap": "smf_minus_ptf_try_mwh", "gap_when_short": "smf_minus_ptf_when_short_try_mwh",
+        "gap_when_long": "smf_minus_ptf_when_long_try_mwh", "aof_ptf_gap": "aof_minus_ptf_try_mwh",
+        "ptf_zero_hours": "hours_ptf_zero", "deficit_share": "share_hours_system_short"}
+dm = m[list(cols)].rename(columns=cols).round(4)
+dm.index = dm.index.strftime("%Y-%m")
+dd = d[list(cols)].rename(columns=cols).round(4)
+dd.index = dd.index.strftime("%Y-%m-%d")
+stamp = f"{last:%Y%m%d}"
+HTML(
+    cs.download_link(dm.rename_axis("month").reset_index(), f"trpowerlab_volatility_monthly_{stamp}.csv", "Monthly (CSV)")
+    + cs.download_link(dd.rename_axis("date").reset_index(), f"trpowerlab_volatility_daily_{stamp}.csv", "Daily (CSV)")
+)
+```
+
+Monthly spreads and standard deviations are averages of daily values. Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*; the figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the underlying data belong to EPİAŞ.
+
+## Notes
+
+- **Source:** EPİAŞ Şeffaflık Platformu hourly PTF, SMF, system direction and intraday weighted average price, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`.
+- **Price caps** limit how high prices and spreads can go; the cap has changed several times since 2022.
+- **Coming next:** the spread of individual intraday trades around each contract's volume-weighted median, a measure of how much a perfectly informed trader could have earned.
+- See the [methodology](../../methodology.qmd) for definitions.

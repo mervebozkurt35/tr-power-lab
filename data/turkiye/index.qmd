@@ -98,12 +98,20 @@ gen = (f"**Generation.** Renewables supplied **{r['renew_share']:.0%}** of meter
        f"{cs.label('generation', mover).lower()}, {'+' if dmov > 0 else '−'}{abs(dmov):.1f} TWh "
        f"({src_now[mover]:.1f} TWh against {src_ly[mover]:.1f} TWh).")
 
+zr, zly = r["ptf_zero_hours"], ry["ptf_zero_hours"]
+markets = (f"**Markets and volatility.** On an average {cur:%B} day the gap between the cheapest and the most expensive hour "
+           f"was **{r['ptf_spread_eur']:.1f} EUR/MWh**, against {ry['ptf_spread_eur']:.1f} a year earlier. "
+           f"Bilateral contracts carried {r['bilateral_share']:.0%} of traded volume, the day-ahead market {r['gop_share']:.0%} "
+           f"and the intraday market {r['idm_share']:.1%}. The intraday average price (AOF) was "
+           f"{abs(r['aof_mean'] - r['ptf_mean']):,.0f} TL/MWh {'above' if r['aof_mean'] > r['ptf_mean'] else 'below'} PTF. "
+           + (f"PTF fell to zero in {zr:.0f} hours ({zly:.0f} in {mon(ly)})." if (zr or zly) else "PTF never fell to zero."))
+
 HTML(f'<p class="eyebrow">Latest full month: {mon(cur)} · data to {last:%d %B %Y}</p>')
 ```
 
 ```{python}
 #| output: asis
-print(price + "\n\n" + demand + "\n\n" + gen)
+print(price + "\n\n" + demand + "\n\n" + gen + "\n\n" + markets)
 ```
 
 ## Key figures
@@ -114,16 +122,24 @@ rows = [
     ("PTF (EUR/MWh)", "ptf_eur_mean", lambda v: f"{v:,.1f}", "pct"),
     ("PTF (TL/MWh)", "ptf_mean", lambda v: f"{v:,.0f}", "pct"),
     ("SMF (TL/MWh)", "smf_mean", lambda v: f"{v:,.0f}", "pct"),
+    ("GİP AOF (TL/MWh)", "aof_mean", lambda v: f"{v:,.0f}", "pct"),
+    ("Daily PTF spread (EUR/MWh)", "ptf_spread_eur", lambda v: f"{v:,.1f}", "pct"),
+    ("Zero-price hours", "ptf_zero_hours", lambda v: f"{v:,.0f}", "abs"),
     ("Hours system short", "deficit_share", lambda v: f"{v:.0%}", "pts"),
     ("Consumption, reported (TWh)", "consumption_mwh", lambda v: f"{v / 1e6:,.1f}", "pct"),
     ("Consumption, like-for-like (TWh)", "like_for_like", lambda v: f"{v / 1e6:,.1f}", "pct"),
     ("Metered generation (TWh)", "total_mwh", lambda v: f"{v / 1e6:,.1f}", "pct"),
     ("Renewable share of generation", "renew_share", lambda v: f"{v:.0%}", "pts"),
     ("Peak demand (MW)", "peak_consumption_mw", lambda v: f"{v:,.0f}", "pct"),
+    ("Bilateral share of traded volume", "bilateral_share", lambda v: f"{v:.0%}", "pts"),
+    ("Day-ahead (GÖP) share", "gop_share", lambda v: f"{v:.0%}", "pts"),
+    ("Intraday (GİP) share", "idm_share", lambda v: f"{v:.1%}", "pts"),
 ]
 def change(kind, a, b):
     if pd.isna(a) or pd.isna(b):
         return "–"
+    if kind == "abs":
+        return f"{a - b:+,.0f}".replace("-", "−")
     v = pts(a, b) if kind == "pts" else pct(a, b)
     return (f"{v:+.1f} pts" if kind == "pts" else f"{v:+.1f}%").replace("-", "−")
 
@@ -133,7 +149,7 @@ tab = pd.DataFrame([{
 Markdown(tab.to_markdown(disable_numparse=True, colalign=["left", "right", "right", "right"]))
 ```
 
-Changes in prices and quantities are percentages; changes in shares are percentage points. Compare with the same month a year earlier for trends: month-on-month changes are mostly the seasons.
+Changes in prices and quantities are percentages, changes in shares are percentage points, and zero-price hours change by hours. Compare with the same month a year earlier for trends: month-on-month changes are mostly the seasons.
 
 ## The last two years at a glance
 
