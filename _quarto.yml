@@ -28,6 +28,8 @@ website:
             href: markets/turkiye/index.qmd
           - text: "Türkiye prices"
             href: markets/turkiye/prices.qmd
+          - text: "Türkiye generation and demand"
+            href: markets/turkiye/generation.qmd
           - text: "Neighbouring markets"
             href: markets/neighbouring-markets/index.qmd
       - text: "Reports"

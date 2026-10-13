@@ -4,8 +4,9 @@ subtitle: "Prices, generation and demand"
 ---
 
 ::: {.callout-note}
-## Now live: [electricity prices](prices.qmd)
-Day-ahead (PTF) and balancing (SMF) prices since 2011, with daily, weekly and monthly views. Generation and demand pages follow.
+## Now live
+- [Electricity prices](prices.qmd): day-ahead (PTF) and balancing (SMF) prices since 2011.
+- [Generation and demand](generation.qmd): generation by source since 2014 and consumption since 2016.
 :::
 
 ## What you will find here
