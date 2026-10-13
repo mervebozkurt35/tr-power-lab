@@ -4,7 +4,7 @@ project:
   output-dir: _site        # rendered HTML goes here; GitHub Actions publishes this folder
   render:                  # only these files become pages (scripts and data are left alone)
     - "*.qmd"
-    - "markets/**/*.qmd"
+    - "data/**/*.qmd"          # data pages live next to the data files; only .qmd files become pages
     - "reports/**/*.qmd"
     - "blog/**/*.qmd"
     - "tools/**/*.qmd"
@@ -16,22 +16,24 @@ execute:
 website:
   title: "TR Power Lab"
   description: "Data and analysis on Türkiye's electricity market."
-  # site-url: https://trpowerlab.com   # uncomment once the domain points to this site
+  site-url: https://mervebozkurt35.github.io/tr-power-lab   # change to https://trpowerlab.com when the domain is live
   repo-url: https://github.com/mervebozkurt35/tr-power-lab
   search: true
   page-navigation: true
   navbar:
     left:
-      - text: "Markets"
+      - text: "Data"
         menu:
-          - text: "Türkiye overview"
-            href: markets/turkiye/index.qmd
-          - text: "Türkiye prices"
-            href: markets/turkiye/prices.qmd
-          - text: "Türkiye generation and demand"
-            href: markets/turkiye/generation.qmd
+          - text: "Overview"
+            href: data/turkiye/index.qmd
+          - text: "Prices"
+            href: data/turkiye/prices.qmd
+          - text: "Generation and demand"
+            href: data/turkiye/generation.qmd
+          - text: "Volatility"
+            href: data/turkiye/volatility.qmd
           - text: "Neighbouring markets"
-            href: markets/neighbouring-markets/index.qmd
+            href: data/neighbouring-markets/index.qmd
       - text: "Reports"
         href: reports/index.qmd
       - text: "Blog"
