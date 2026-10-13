@@ -1,0 +1,191 @@
+{
+  "_about": "Single source of chart colours for TR Power Lab. Colours are assigned by meaning, in families: a market keeps one colour for its price and its volumes; balancing direction is warm (system short, up) versus cool (system long, down); a plan is the dashed version of its actual. Light and dark values are separate validated steps (dataviz validator: lightness band, chroma, colour-blind separation, contrast). Change a colour only by re-running the validator.",
+  "surfaces": {
+    "light": {
+      "surface": "#F7F9FA",
+      "ink": "#15212A",
+      "ink_muted": "#5A6A75",
+      "grid": "#E1E7EA",
+      "axis": "#C3CDD2"
+    },
+    "dark": {
+      "surface": "#0E161B",
+      "ink": "#E3EBEF",
+      "ink_muted": "#94A5AF",
+      "grid": "#1E2A31",
+      "axis": "#33434C"
+    }
+  },
+  "markets": {
+    "_about": "One colour per market, used for its price and its volumes. Stack order for volume shares, bottom to top; adjacent pairs validated.",
+    "order": [
+      "bilateral",
+      "gop",
+      "gip",
+      "dgp",
+      "vep"
+    ],
+    "labels": {
+      "bilateral": "Bilateral contracts (İA)",
+      "gop": "Day-ahead (GÖP)",
+      "gip": "Intraday (GİP)",
+      "dgp": "Balancing (DGP)",
+      "vep": "Futures (VEP)"
+    },
+    "light": {
+      "bilateral": "#3D5FC2",
+      "gop": "#0E9AA7",
+      "gip": "#E8833A",
+      "dgp": "#8A3FC7",
+      "vep": "#C9407F"
+    },
+    "dark": {
+      "bilateral": "#6470E0",
+      "gop": "#169CAB",
+      "gip": "#D9701F",
+      "dgp": "#9C5CDD",
+      "vep": "#D9558C"
+    }
+  },
+  "prices": {
+    "order": [
+      "ptf",
+      "smf",
+      "aof"
+    ],
+    "labels": {
+      "ptf": "PTF (day-ahead)",
+      "smf": "SMF (balancing)",
+      "aof": "GİP AOF (intraday)"
+    },
+    "light": {
+      "ptf": "#0E9AA7",
+      "smf": "#8A3FC7",
+      "aof": "#E8833A"
+    },
+    "dark": {
+      "ptf": "#169CAB",
+      "smf": "#9C5CDD",
+      "aof": "#D9701F"
+    },
+    "_about": "Each price takes its market's colour: PTF = GÖP, SMF = DGP, AOF = GİP.",
+    "market": {
+      "ptf": "gop",
+      "smf": "dgp",
+      "aof": "gip"
+    }
+  },
+  "generation": {
+    "_order": "Stack order, bottom to top. The order is part of the colour-blind safety check: adjacent pairs were validated. Keep it.",
+    "order": [
+      "coal",
+      "geothermal",
+      "biomass",
+      "hydro",
+      "gas",
+      "wind",
+      "solar",
+      "other"
+    ],
+    "labels": {
+      "coal": "Coal",
+      "geothermal": "Geothermal",
+      "biomass": "Biomass",
+      "hydro": "Hydro",
+      "gas": "Natural gas",
+      "wind": "Wind",
+      "solar": "Solar",
+      "other": "Other",
+      "solar_unmetered": "Solar, unmetered (estimate)"
+    },
+    "light": {
+      "coal": "#9A5B2C",
+      "geothermal": "#C43D7A",
+      "biomass": "#3E9B3E",
+      "hydro": "#2A78D6",
+      "gas": "#E8833A",
+      "wind": "#16A3A8",
+      "solar": "#E6A800",
+      "other": "#8A949A",
+      "solar_unmetered": "#E6A800"
+    },
+    "dark": {
+      "coal": "#A86A3A",
+      "geothermal": "#D9558C",
+      "biomass": "#3C9A3C",
+      "hydro": "#3987E5",
+      "gas": "#D9701F",
+      "wind": "#1A9AA0",
+      "solar": "#C98500",
+      "other": "#7A858B",
+      "solar_unmetered": "#C98500"
+    },
+    "_detail": "Detailed view splits coal and hydro into steps of the same hue, light to dark.",
+    "detail": {
+      "light": {
+        "lignite": "#9A5B2C",
+        "imported_coal": "#6E3F1C",
+        "hard_coal": "#C4874F",
+        "hydro_dam": "#1C5CAB",
+        "hydro_river": "#6DA7EC"
+      },
+      "dark": {
+        "lignite": "#A86A3A",
+        "imported_coal": "#7E4A24",
+        "hard_coal": "#C99260",
+        "hydro_dam": "#2A6FC9",
+        "hydro_river": "#7DB2F0"
+      }
+    }
+  },
+  "balancing": {
+    "_about": "Diverging by system direction. Warm = system short: up-regulation (YAL), Enerji Açığı, negative imbalance, actual above plan. Cool = system long: down-regulation (YAT), Enerji Fazlası, positive imbalance, actual below plan. Steps by instruction code: code 0 darkest, then code 1, then code 2. Undelivered instructions: hatched. Neutral midpoint: grey.",
+    "labels": {
+      "up": "Up-regulation (YAL)",
+      "down": "Down-regulation (YAT)"
+    },
+    "light": {
+      "up": [
+        "#A3262A",
+        "#D24A4A",
+        "#EE8C86"
+      ],
+      "down": [
+        "#1C5CAB",
+        "#3987E5",
+        "#7AAEEE"
+      ],
+      "neutral": "#C3CDD2"
+    },
+    "dark": {
+      "up": [
+        "#B03A36",
+        "#DA5B5A",
+        "#F09A93"
+      ],
+      "down": [
+        "#2A6FC9",
+        "#4A92E6",
+        "#8FBDF2"
+      ],
+      "neutral": "#33434C"
+    }
+  },
+  "single": {
+    "_about": "Default for a chart with one series and no market or source meaning (counts, loss factor).",
+    "light": "#2E6A9E",
+    "dark": "#5A9AD6"
+  },
+  "rules": [
+    "Plan versus actual: same colour; the plan or forecast is a dashed line, the actual is solid (KGÜP vs real-time generation, load forecast plan vs consumption).",
+    "Forecast or plan error uses the balancing arms: actual above plan is warm, below is cool.",
+    "Imbalance prices: negative imbalance price uses the warm middle step, positive imbalance price the cool middle step, both dashed beside PTF and SMF.",
+    "A ninth generation source or a sixth market is never a new hue: fold into Other or split into small multiples."
+  ],
+  "notes": [
+    "Orange, teal and yellow sit below 3:1 contrast on the light surface: those charts always carry a legend plus direct labels or a data table.",
+    "'Other' is neutral grey on purpose and is always labelled.",
+    "Unmetered solar uses the solar hue with a diagonal hatch, never a new hue.",
+    "Status colours (good, warning, critical) are not used for series."
+  ]
+}
