@@ -6,6 +6,10 @@ Series (each starts on its own first available date)
   smf          SMF and system direction                            call: mcp-smp-imb
   consumption  real-time consumption                               call: rt-cons
   generation   real-time generation by source                      call: rt-gen
+  dam          day-ahead (GÖP) matched quantity                    call: dam-clearing
+  bilateral    bilateral contract (İA) quantity                    call: bi-long
+  idm          intraday (GİP) matched quantity per delivery hour   call: idm-qty
+  wap          intraday (GİP) weighted average price (AOF)         call: wap
 
 What it writes
   data/raw/<series>/<YYYY-MM>.csv     hourly data as EPİAŞ returns it (local only, never committed)
@@ -27,7 +31,7 @@ import argparse
 import os
 import sys
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -249,6 +253,71 @@ def fetch_plain(key: str):
     return lambda eptr, start, end: call(eptr, key, start, end)
 
 
+def fetch_dam(eptr, start: str, end: str) -> pd.DataFrame:
+    """Day-ahead market (GÖP) matched quantity, MWh per hour. Bids and offers match, so either is the volume."""
+    df = call(eptr, "dam-clearing", start, end)
+    if df.empty:
+        return df
+    if not {"date", "matchedBids"}.issubset(df.columns):
+        raise KeyError(f"dam-clearing columns changed: {list(df.columns)}")
+    df = df.reindex(columns=["date", "matchedBids", "matchedOffers"])
+    return df.rename(columns={"matchedBids": "gop_matched", "matchedOffers": "gop_matched_offers"})
+
+
+def fetch_bilateral(eptr, start: str, end: str) -> pd.DataFrame:
+    """Bilateral contract (İA) quantity, MWh per hour, buy side (every contract has a buyer and a seller)."""
+    df = call(eptr, "bi-long", start, end)
+    if df.empty:
+        return df
+    if not {"date", "quantity"}.issubset(df.columns):
+        raise KeyError(f"bi-long columns changed: {list(df.columns)}")
+    return df[["date", "quantity"]].rename(columns={"quantity": "bilateral"})
+
+
+def fetch_idm(eptr, start: str, end: str) -> pd.DataFrame:
+    """Intraday market (GİP) matched quantity per delivery hour.
+
+    EPİAŞ reports it per contract: hourly contracts PHyyMMDDHH and block contracts PByyMMDDHH-BB
+    (BB = number of hours). Trading for a day starts the day before, so ask one day earlier.
+    Block quantities are treated as MWh per hour of the block and spread over its hours.
+    """
+    s = (date.fromisoformat(start) - timedelta(days=1)).isoformat()
+    df = call(eptr, "idm-qty", s, end)
+    if df.empty:
+        return df
+    if not {"kontratAdi", "clearingQuantityAsk"}.issubset(df.columns):
+        raise KeyError(f"idm-qty columns changed: {list(df.columns)}")
+    code = df["kontratAdi"].astype(str)
+    hourly = code.str.match(r"^PH\d{8}$")
+    block = code.str.match(r"^PB\d{8}-\d{2}$")
+    other = sorted(set(code[~hourly & ~block].str[:2]))
+    if other:
+        notes.append(f"idm: contract types {other} are not counted yet ({(~hourly & ~block).sum()} rows).")
+    rows = []
+    for c, q in zip(code[hourly | block], df.loc[hourly | block, "clearingQuantityAsk"]):
+        t0 = pd.Timestamp(datetime.strptime(c[2:10], "%y%m%d%H")).tz_localize(TZ, nonexistent="shift_forward",
+                                                                             ambiguous=False)
+        n = int(c[11:13]) if c.startswith("PB") else 1
+        for k in range(n):
+            rows.append((t0 + pd.Timedelta(hours=k), float(q)))
+    if not rows:
+        return pd.DataFrame()
+    out = pd.DataFrame(rows, columns=["t", "idm_matched"]).groupby("t", as_index=False).sum()
+    out["date"] = out["t"].map(lambda t: t.isoformat())
+    return out[["date", "idm_matched"]]
+
+
+def fetch_wap(eptr, start: str, end: str) -> pd.DataFrame:
+    """Intraday (GİP) weighted average price, AOF, TL/MWh."""
+    df = call(eptr, "wap", start, end)
+    if df.empty:
+        return df
+    col = "wap" if "wap" in df.columns else next((c for c in df.columns if c.lower() in ("price", "wap", "aof")), None)
+    if "date" not in df.columns or col is None:
+        raise KeyError(f"wap columns changed: {list(df.columns)}")
+    return df[["date", col]].rename(columns={col: "aof"})
+
+
 # Each raw series: (EPİAŞ call used to find its start date, download function).
 # Series are stored separately so each one can start on its own first available date.
 SERIES = {
@@ -256,7 +325,12 @@ SERIES = {
     "smf": ("mcp-smp-imb", fetch_smf),
     "consumption": ("rt-cons", fetch_plain("rt-cons")),
     "generation": ("rt-gen", fetch_plain("rt-gen")),
+    "dam": ("dam-clearing", fetch_dam),
+    "bilateral": ("bi-long", fetch_bilateral),
+    "idm": ("idm-qty", fetch_idm),
+    "wap": ("wap", fetch_wap),
 }
+OPTIONAL = {"dam", "bilateral", "idm", "wap"}   # outputs are built without them if they are not downloaded yet
 
 
 # ---------------------------------------------------------------- cleaning
@@ -264,6 +338,8 @@ SERIES = {
 def load(series: str, start: date, end: date) -> pd.DataFrame:
     files = sorted((RAW / series).glob("*.csv"))
     if not files:
+        if series in OPTIONAL:
+            return None
         sys.exit(f"No raw {series} files. Run without --skip-download first.")
     df = pd.concat((pd.read_csv(f).assign(_file=f.stem) for f in files), ignore_index=True)
 
@@ -365,9 +441,19 @@ def check_prices(df: pd.DataFrame) -> None:
 
 # ---------------------------------------------------------------- outputs
 
-def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame) -> None:
+def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame, extra: dict) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     hourly = prices.join(cons[["consumption"]], how="outer").join(gen.add_prefix("gen_"), how="outer")
+    for name, col, new_col in (("dam", "gop_matched", "gop"), ("bilateral", "bilateral", "bilateral"),
+                               ("idm", "idm_matched", "idm"), ("wap", "aof", "aof")):
+        hourly[new_col] = extra[name][col] if name in extra else float("nan")
+        hourly[new_col] = pd.to_numeric(hourly[new_col], errors="coerce")
+    # Price volatility helpers
+    hourly["smf_ptf_gap"] = hourly["smf"] - hourly["ptf"]
+    hourly["gap_when_short"] = hourly["smf_ptf_gap"].where(hourly["system_direction"] == DEFICIT)
+    hourly["gap_when_long"] = hourly["smf_ptf_gap"].where(hourly["system_direction"] == SURPLUS)
+    hourly["ptf_zero"] = (hourly["ptf"] == 0).astype(float).where(hourly["ptf"].notna())
+    hourly["aof_ptf_gap"] = hourly["aof"] - hourly["ptf"]
     hourly["deficit"] = (hourly["system_direction"] == DEFICIT).astype(float)
     hourly["surplus"] = (hourly["system_direction"] == SURPLUS).astype(float)
     hourly.loc[hourly["system_direction"].isna(), ["deficit", "surplus"]] = float("nan")
@@ -380,7 +466,7 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame) -
 
     # Each series keeps its own start date. Before it starts, its cells are blank in the output
     # files, and charts begin at the first non-blank value rather than at the earliest date overall.
-    for col in ["ptf", "ptf_eur", "smf", "system_direction", "consumption"] + gen_cols:
+    for col in ["ptf", "ptf_eur", "smf", "system_direction", "aof", "gop", "bilateral", "idm", "consumption"] + gen_cols:
         if col in hourly.columns and hourly[col].notna().any():
             s = hourly[col]
             coverage.append(f"| {col} | {s.first_valid_index():%Y-%m-%d} | {s.last_valid_index():%Y-%m-%d} |")
@@ -403,17 +489,45 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame) -
         })
         out = out.join(g[gen_cols].sum(min_count=1).rename(columns=lambda c: c.replace("gen_", "") + "_mwh"))
         out["embedded_gen_est_mwh"] = g["embedded_gen_est"].sum(min_count=1)
+
+        # Intraday price and where electricity is traded
+        out["aof_mean"] = g["aof"].mean()
+        for k in ("gop", "bilateral", "idm"):
+            out[f"{k}_mwh"] = g[k].sum(min_count=1)
+        traded = out[["gop_mwh", "bilateral_mwh", "idm_mwh"]].sum(axis=1, min_count=3)
+        for k in ("gop", "bilateral", "idm"):
+            out[f"{k}_share"] = out[f"{k}_mwh"] / traded
+
+        # Volatility
+        out["ptf_std"] = g["ptf"].std()                 # spread of hourly prices around the period mean
+        out["smf_ptf_gap"] = g["smf_ptf_gap"].mean()    # positive: balancing energy dearer than day-ahead
+        out["smf_ptf_absgap"] = g["smf_ptf_gap"].apply(lambda x: x.abs().mean())
+        out["gap_when_short"] = g["gap_when_short"].mean()
+        out["gap_when_long"] = g["gap_when_long"].mean()
+        out["aof_ptf_gap"] = g["aof_ptf_gap"].mean()
+        out["ptf_zero_hours"] = g["ptf_zero"].sum(min_count=1)
         out.index = out.index.date if freq == "D" else out.index.strftime("%Y-%m")
-        out.index.name = "date" if freq == "D" else "month"
-        return out.round(2)
+        return out
 
     daily = aggregate("D")
+    daily["ptf_spread"] = daily["ptf_max"] - daily["ptf_min"]          # one charge-discharge cycle per day
+    fx = daily["ptf_mean"] / daily["ptf_eur_mean"].where(daily["ptf_eur_mean"] > 0)
+    daily["ptf_spread_eur"] = daily["ptf_spread"] / fx                # converted at the day's implied rate
+    daily["ptf_std_eur"] = daily["ptf_std"] / fx
     monthly = aggregate("MS")
+    by_month = daily[["ptf_spread", "ptf_spread_eur", "ptf_std", "ptf_std_eur"]].copy()
+    by_month.index = pd.to_datetime(by_month.index)
+    by_month = by_month.resample("MS").mean()                         # average of daily values
+    by_month.index = by_month.index.strftime("%Y-%m")
+    monthly = monthly.drop(columns=["ptf_std"]).join(by_month)
+    daily, monthly = daily.round(4), monthly.round(4)
+    daily.index.name, monthly.index.name = "date", "month"
     daily.to_csv(OUT / "core_daily.csv")
     monthly.to_csv(OUT / "core_monthly.csv")
 
     cutoff = hourly.index.max() - pd.Timedelta(days=RECENT_DAYS)
-    recent = hourly[hourly.index > cutoff].drop(columns=["ptf_x_cons", "deficit", "surplus"])
+    helpers = ["ptf_x_cons", "deficit", "surplus", "smf_ptf_gap", "gap_when_short", "gap_when_long", "ptf_zero", "aof_ptf_gap"]
+    recent = hourly[hourly.index > cutoff].drop(columns=helpers)
     recent.index = recent.index.strftime("%Y-%m-%dT%H:%M%z")
     recent.round(2).to_csv(OUT / "core_hourly_recent.csv")
 
@@ -484,8 +598,17 @@ def main() -> None:
     gen = clean_generation(load("generation", start, end))
     check_values("generation", gen[gen.index >= pd.Timestamp(GEN_COMPLETE_FROM, tz=TZ)], ["total"])
 
+    extra = {}
+    for name, cols in (("dam", ["gop_matched"]), ("bilateral", ["bilateral"]), ("idm", ["idm_matched"]), ("wap", ["aof"])):
+        df = load(name, start, end)
+        if df is None:
+            notes.append(f"{name}: not downloaded yet; its columns are left empty.")
+            continue
+        check_values(name, df, cols)
+        extra[name] = df
+
     print("Writing outputs …")
-    build_outputs(prices, cons, gen)
+    build_outputs(prices, cons, gen, extra)
     write_report(start, end)
 
 
