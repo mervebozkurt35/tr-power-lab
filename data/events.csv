@@ -1,11 +1,12 @@
 date,end_date,category,title,description,series,source,status
-2020-03-11,,demand,First COVID-19 case in Türkiye,"Pandemic measures followed in spring 2020; check the consumption dip in the data.",consumption,,draft
-2023-02-01,,regulation,Price cap 3650 TL/MWh,"Observed in data: monthly maximum PTF falls from 4200 (Jan 2023) to 3650 from 1 Feb 2023. Confirm with the EPDK decision.",ptf,observed in data,draft
-2023-02-06,,supply,Kahramanmaraş earthquakes,"Earthquakes in southeastern Türkiye; effects on demand and on the grid in the affected region.",consumption;generation,,draft
-2023-03-01,,regulation,Price cap 3050 TL/MWh,"Observed in data: monthly maximum PTF 3050 from 1 Mar 2023. Confirm with the EPDK decision.",ptf,observed in data,draft
-2023-04-01,,regulation,Price cap 2600 TL/MWh,"Observed in data: monthly maximum PTF 2600 from 1 Apr 2023. Confirm with the EPDK decision.",ptf,observed in data,draft
-2023-07-01,,regulation,Price cap 2700 TL/MWh,"Observed in data: 2700 first reached on 20 Jul 2023; June maximum was 2600. Confirm the effective date with the EPDK decision.",ptf,observed in data,draft
-2024-07-01,,regulation,Price cap 3000 TL/MWh,"Observed in data: monthly maximum PTF 3000 from 1 Jul 2024. Confirm with the EPDK decision.",ptf,observed in data,draft
-2025-04-01,,regulation,Price cap 3400 TL/MWh,"Observed in data: 3400 first reached on 7 Apr 2025; March maximum was 3000. Confirm the effective date with the EPDK decision.",ptf,observed in data,draft
-2026-04-01,,regulation,Price cap 4500 TL/MWh,"Observed in data: 4500 first reached on 4 Apr 2026; March maximum was 3400. Confirm the effective date with the EPDK decision.",ptf,observed in data,draft
-2026-02-01,2026-06-30,weather,Very high hydro output,"Observed in data: dam hydro 8-9 TWh a month in Mar-May 2026 against 3-5.5 TWh in the springs of 2023-2025; PTF averaged 591 TL/MWh in May 2026. Confirm with precipitation and reservoir data.",ptf;generation,observed in data,draft
+2020-03-11,,demand,First COVID-19 case in Türkiye,Pandemic measures followed in spring 2020; check the consumption dip in the data.,consumption,,draft
+2020-12-30,,data,Consumption series includes unmetered generation,Observed in data: from 30 Dec 2020 real-time consumption exceeds metered generation plus net imports by about 3% (rising to about 10% in 2026); before that the two match. Growth rates across this date are overstated. Confirm with EPİAŞ.,consumption,observed in data,draft
+2023-02-01,,regulation,Price cap 3650 TL/MWh,Observed in data: monthly maximum PTF falls from 4200 (Jan 2023) to 3650 from 1 Feb 2023. Confirm with the EPDK decision.,ptf,observed in data,draft
+2023-02-06,,supply,Kahramanmaraş earthquakes,Earthquakes in southeastern Türkiye; effects on demand and on the grid in the affected region.,consumption;generation,,draft
+2023-03-01,,regulation,Price cap 3050 TL/MWh,Observed in data: monthly maximum PTF 3050 from 1 Mar 2023. Confirm with the EPDK decision.,ptf,observed in data,draft
+2023-04-01,,regulation,Price cap 2600 TL/MWh,Observed in data: monthly maximum PTF 2600 from 1 Apr 2023. Confirm with the EPDK decision.,ptf,observed in data,draft
+2023-07-01,,regulation,Price cap 2700 TL/MWh,Observed in data: 2700 first reached on 20 Jul 2023; June maximum was 2600. Confirm the effective date with the EPDK decision.,ptf,observed in data,draft
+2024-07-01,,regulation,Price cap 3000 TL/MWh,Observed in data: monthly maximum PTF 3000 from 1 Jul 2024. Confirm with the EPDK decision.,ptf,observed in data,draft
+2025-04-01,,regulation,Price cap 3400 TL/MWh,Observed in data: 3400 first reached on 7 Apr 2025; March maximum was 3000. Confirm the effective date with the EPDK decision.,ptf,observed in data,draft
+2026-02-01,2026-06-30,weather,Very high hydro output,Observed in data: dam hydro 8-9 TWh a month in Mar-May 2026 against 3-5.5 TWh in the springs of 2023-2025; PTF averaged 591 TL/MWh in May 2026. Confirm with precipitation and reservoir data.,ptf;generation,observed in data,draft
+2026-04-01,,regulation,Price cap 4500 TL/MWh,Observed in data: 4500 first reached on 4 Apr 2026; March maximum was 3400. Confirm the effective date with the EPDK decision.,ptf,observed in data,draft
