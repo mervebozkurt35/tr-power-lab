@@ -1,0 +1,53 @@
+# Builds the Quarto site and publishes it to GitHub Pages on every push to main.
+name: Publish site
+
+on:
+  push:
+    branches: [main]      # run after every change on the main branch
+  workflow_dispatch:      # also allows a manual run from the Actions tab
+
+permissions:
+  contents: read          # read the repository
+  pages: write            # publish to GitHub Pages
+  id-token: write         # needed by the Pages deploy step
+
+concurrency:
+  group: pages            # never run two publishes at once
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+
+      - name: Install Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Render the site
+        run: quarto render
+
+      - name: Upload the rendered site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
