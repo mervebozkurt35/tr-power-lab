@@ -61,6 +61,11 @@ GEN_SKIP = {"date", "hour", "total", "importExport"}  # not generation sources
 GEN_ORDER = ["gas", "lignite", "imported_coal", "hard_coal", "hydro_dam", "hydro_river",
              "wind", "solar", "geothermal", "biomass", "other"]
 
+# Periods where a series exists but is not usable as published (see quality report).
+GEN_COMPLETE_FROM = "2014-01-01"        # real-time generation adds plants gradually through 2013
+NET_IMPORTS_FROM = "2018-01-01"         # cross-border flows are reported as 0 before 2018
+EMBEDDED_FROM = "2020-12-30"            # real-time consumption includes unmetered generation from here
+
 DEFICIT = "Enerji Açığı"   # system short: balancing ordered up
 SURPLUS = "Enerji Fazlası"  # system long: balancing ordered down
 
@@ -156,21 +161,66 @@ def download(eptr, start: date, end: date, refresh_months: int) -> None:
         if first > 0:
             print(f"  {series:12s} starts in {months[first][0]:%Y-%m}; earlier months have no data")
 
+        accepted = folder / "_incomplete_ok.txt"  # months already repaired once; gaps are EPİAŞ's
+        ok = set(accepted.read_text().split()) if accepted.exists() else set()
         for a, b in months[first:]:
             tag = a.strftime("%Y-%m")
             path = folder / f"{tag}.csv"
             if path.exists() and tag not in fresh:
-                continue
+                if tag in ok or b == end or hours_short(pd.read_csv(path), a, b) == 0:
+                    continue
+                print(f"  {series:12s} {tag}  repairing missing hours")
             try:
-                df = fetch(eptr, a.isoformat(), b.isoformat())
+                df = fetch_month(eptr, fetch, a, b)
             except Exception as exc:  # one bad month should not stop the run
                 notes.append(f"{series}: {tag} could not be downloaded ({exc}). Run again later.")
                 continue
             if df.empty:
                 notes.append(f"{series}: no data returned for {tag}.")
                 continue
+            if b != end and hours_short(df, a, b):
+                ok.add(tag)  # still short after a day-by-day retry: accept and stop retrying
+                accepted.write_text("\n".join(sorted(ok)))
             df.to_csv(path, index=False)
             print(f"  {series:12s} {tag}  {len(df):5d} rows")
+
+
+def _times(df: pd.DataFrame) -> pd.Series:
+    return pd.to_datetime(df["date"], utc=True, format="ISO8601").dt.tz_convert(TZ)
+
+
+def _day_hours(a: date, b: date) -> pd.Series:
+    """Hours in each day from a to b, aware of old daylight-saving days (23 or 25 hours)."""
+    idx = pd.date_range(pd.Timestamp(a, tz=TZ), pd.Timestamp(b + timedelta(days=1), tz=TZ),
+                        freq="h", inclusive="left")
+    return pd.Series(1, index=idx).groupby(idx.date).sum()
+
+
+def _short_days(df: pd.DataFrame, a: date, b: date) -> list:
+    have = _times(df).dt.date.value_counts() if len(df) else pd.Series(dtype=int)
+    need = _day_hours(a, b)
+    # A 25-hour autumn day reported as 24 hours is normal for EPİAŞ, so allow one hour.
+    return [d for d, n in need.items() if have.get(d, 0) < n - (1 if n == 25 else 0)]
+
+
+def hours_short(df: pd.DataFrame, a: date, b: date) -> int:
+    return len(_short_days(df, a, b))
+
+
+def fetch_month(eptr, fetch, a: date, b: date) -> pd.DataFrame:
+    """Download one month. Asks for one extra day because some older EPİAŞ calls treat the end
+    date as exclusive, keeps only the month's own hours, then retries any short day on its own."""
+    df = fetch(eptr, a.isoformat(), (b + timedelta(days=1)).isoformat())
+    if df.empty:
+        return df
+    t = _times(df).dt.date
+    df = df[(t >= a) & (t <= b)]
+    missing = _short_days(df, a, b)
+    if missing and len(missing) <= 10:
+        extra = [fetch(eptr, d.isoformat(), d.isoformat()) for d in missing]
+        df = pd.concat([df, *[e for e in extra if not e.empty]], ignore_index=True)
+        df = df.loc[~_times(df).duplicated(keep="last")]
+    return df.sort_values("date", key=lambda c: pd.to_datetime(c, utc=True, format="ISO8601"))
 
 
 def fetch_ptf(eptr, start: str, end: str) -> pd.DataFrame:
@@ -264,7 +314,10 @@ def clean_generation(df: pd.DataFrame) -> pd.DataFrame:
         if bad:
             notes.append(f"generation: {bad} hours match neither definition (difference above 1%). Check these on the platform.")
     if "importExport" in df.columns:
-        grouped["net_imports"] = imports
+        grouped["net_imports"] = imports.where(imports.index >= pd.Timestamp(NET_IMPORTS_FROM, tz=TZ))
+    early = grouped.index < pd.Timestamp(GEN_COMPLETE_FROM, tz=TZ)
+    if early.any():
+        grouped.loc[early, [c for c in grouped.columns if c != "net_imports"]] = float("nan")
     return grouped
 
 
@@ -275,6 +328,16 @@ def check_values(series: str, df: pd.DataFrame, cols: list[str]) -> None:
             n = df[col].isna().sum()
             if n:
                 notes.append(f"{series}: {col} is empty in {n} hours (includes any missing hours above).")
+
+
+def clean_ptf(df: pd.DataFrame) -> pd.DataFrame:
+    """EUR and USD prices published as 0 while PTF is positive are missing values, not zero prices."""
+    for col in ("ptf_eur", "ptf_usd"):
+        bad = (df[col] == 0) & (df["ptf"] > 0)
+        if bad.any():
+            notes.append(f"ptf: {col} is 0 while PTF is positive in {bad.sum()} hours; treated as missing.")
+            df.loc[bad, col] = float("nan")
+    return df
 
 
 def check_prices(df: pd.DataFrame) -> None:
@@ -298,6 +361,7 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame) -
     # Generation missing from the real-time series, mostly unlicensed solar on distribution grids:
     # consumption minus metered generation minus net imports. Close to zero at night, solar shaped by day.
     hourly["embedded_gen_est"] = hourly["consumption"] - hourly["gen_total"] - hourly.get("gen_net_imports", 0)
+    hourly.loc[hourly.index < pd.Timestamp(EMBEDDED_FROM, tz=TZ), "embedded_gen_est"] = float("nan")
     gen_cols = [c for c in hourly.columns if c.startswith("gen_")]
 
     # Each series keeps its own start date. Before it starts, its cells are blank in the output
@@ -357,7 +421,11 @@ def write_report(start: date, end: date) -> None:
         "- Real-time generation does not include most small, unlicensed solar connected to distribution grids,",
         "  so solar output and its share are understated. Real-time consumption does include the demand it serves.",
         "  `embedded_gen_est` = consumption - metered generation - net imports estimates the missing generation.",
-        "- `net_imports`: positive = net imports, negative = net exports.",
+        "- `net_imports`: positive = net imports, negative = net exports. Reported as 0 before 2018, so left empty there.",
+        f"- Real-time generation is left empty before {GEN_COMPLETE_FROM}: EPİAŞ added plants to it gradually during 2013.",
+        f"- Real-time consumption changes definition on {EMBEDDED_FROM}: from then on it includes demand met by",
+        "  unmetered generation (about 3% of consumption at the start, rising since). Before that it equals metered",
+        "  generation plus net imports. Growth rates across that date are overstated; `embedded_gen_est` starts there.",
         "",
         "Coverage (first and last day with data):",
         "",
@@ -391,7 +459,7 @@ def main() -> None:
         download(connect(), start, end, a.refresh_months)
 
     print("Cleaning …")
-    ptf = load("ptf", start, end)
+    ptf = clean_ptf(load("ptf", start, end))
     check_prices(ptf)
     check_values("ptf", ptf, ["ptf", "ptf_eur"])
     smf = load("smf", start, end)
@@ -400,7 +468,7 @@ def main() -> None:
     cons = load("consumption", start, end)
     check_values("consumption", cons, ["consumption"])
     gen = clean_generation(load("generation", start, end))
-    check_values("generation", gen, ["total"])
+    check_values("generation", gen[gen.index >= pd.Timestamp(GEN_COMPLETE_FROM, tz=TZ)], ["total"])
 
     print("Writing outputs …")
     build_outputs(prices, cons, gen)
