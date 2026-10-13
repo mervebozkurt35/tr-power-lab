@@ -24,8 +24,10 @@ website:
     left:
       - text: "Markets"
         menu:
-          - text: "Türkiye"
+          - text: "Türkiye overview"
             href: markets/turkiye/index.qmd
+          - text: "Türkiye prices"
+            href: markets/turkiye/prices.qmd
           - text: "Neighbouring markets"
             href: markets/neighbouring-markets/index.qmd
       - text: "Reports"
@@ -50,9 +52,7 @@ website:
 
 format:
   html:
-    theme:
-      light: [cosmo, assets/theme.scss]      # base theme plus our colours and fonts
-      dark: [cosmo, assets/theme-dark.scss]  # same layout with a dark palette
+    theme: [cosmo, assets/theme-dark.scss]  # dark only: base theme plus our colours and fonts
     toc: true              # table of contents on long pages
     smooth-scroll: true
     link-external-newwindow: true

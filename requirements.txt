@@ -3,3 +3,4 @@ eptr2[allextras]   # EPİAŞ Şeffaflık Platformu client
 pandas             # tables and time series
 plotly             # interactive charts
 jupyter            # lets Quarto run Python code inside pages
+tabulate              # tables in pages (pandas to_markdown)
