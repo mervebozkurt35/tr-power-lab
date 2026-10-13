@@ -1,0 +1,63 @@
+# Quarto project settings: this file controls the whole website.
+project:
+  type: website            # build a multi-page website, not a single document
+  output-dir: _site        # rendered HTML goes here; GitHub Actions publishes this folder
+  render:                  # only these files become pages (scripts and data are left alone)
+    - "*.qmd"
+    - "data/**/*.qmd"          # data pages live next to the data files; only .qmd files become pages
+    - "reports/**/*.qmd"
+    - "blog/**/*.qmd"
+    - "tools/**/*.qmd"
+    - "learn/**/*.qmd"
+
+execute:
+  freeze: auto             # re-run code in a page only when that page changes
+
+website:
+  title: "TR Power Lab"
+  description: "Data and analysis on Türkiye's electricity market."
+  # site-url: https://trpowerlab.com   # uncomment once the domain points to this site
+  repo-url: https://github.com/mervebozkurt35/tr-power-lab
+  search: true
+  page-navigation: true
+  navbar:
+    left:
+      - text: "Data"
+        menu:
+          - text: "Overview"
+            href: data/turkiye/index.qmd
+          - text: "Prices"
+            href: data/turkiye/prices.qmd
+          - text: "Generation and demand"
+            href: data/turkiye/generation.qmd
+          - text: "Volatility"
+            href: data/turkiye/volatility.qmd
+          - text: "Neighbouring markets"
+            href: data/neighbouring-markets/index.qmd
+      - text: "Reports"
+        href: reports/index.qmd
+      - text: "Blog"
+        href: blog/index.qmd
+      - text: "Tools"
+        href: tools/index.qmd
+      - text: "Learn"
+        href: learn/index.qmd
+    right:
+      - text: "Methodology"
+        href: methodology.qmd
+      - text: "About"
+        href: about.qmd
+      - icon: github
+        href: https://github.com/mervebozkurt35/tr-power-lab
+        aria-label: GitHub
+  page-footer:
+    left: "© 2026 TR Power Lab · Analysis and charts under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), code under MIT · Independent, not affiliated with EPİAŞ, TEİAŞ or EPDK."
+    right: "Data belong to EPİAŞ Şeffaflık Platformu and the other sources listed in the [methodology](/methodology.qmd#reuse)."
+
+format:
+  html:
+    theme: [cosmo, assets/theme-dark.scss]  # dark only: base theme plus our colours and fonts
+    toc: true              # table of contents on long pages
+    smooth-scroll: true
+    link-external-newwindow: true
+    lang: en
