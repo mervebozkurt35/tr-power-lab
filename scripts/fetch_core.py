@@ -331,11 +331,12 @@ def check_values(series: str, df: pd.DataFrame, cols: list[str]) -> None:
 
 
 def clean_ptf(df: pd.DataFrame) -> pd.DataFrame:
-    """EUR and USD prices published as 0 while PTF is positive are missing values, not zero prices."""
+    """EUR and USD prices published as 0 while PTF is at least 1 TL/MWh are missing values, not zero
+    prices. (A PTF of a few kuruş legitimately rounds to 0.00 in EUR and USD, so those are kept.)"""
     for col in ("ptf_eur", "ptf_usd"):
-        bad = (df[col] == 0) & (df["ptf"] > 0)
+        bad = (df[col] == 0) & (df["ptf"] >= 1)
         if bad.any():
-            notes.append(f"ptf: {col} is 0 while PTF is positive in {bad.sum()} hours; treated as missing.")
+            notes.append(f"ptf: {col} is 0 while PTF is at least 1 TL/MWh in {bad.sum()} hours; treated as missing.")
             df.loc[bad, col] = float("nan")
     return df
 
