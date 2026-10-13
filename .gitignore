@@ -1,0 +1,23 @@
+# Credentials: never commit these
+.env
+*.env
+secrets/
+
+# Raw data stays local until EPİAŞ terms are confirmed
+data/raw/*
+!data/raw/README.md
+
+# Quarto build output (GitHub Actions rebuilds it)
+_site/
+.quarto/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Operating system files
+.DS_Store
+Thumbs.db
