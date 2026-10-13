@@ -157,7 +157,7 @@ def style_controls(fig) -> None:
                                         font=dict(color=s["ink"], size=12)))
 
 
-CONFIG = {"displaylogo": False, "responsive": True, "typesetMath": False,
+CONFIG = {"displaylogo": False, "responsive": True, "typesetMath": False, "displayModeBar": False,
           "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d"]}
 
 
@@ -167,6 +167,18 @@ def show(fig) -> None:
     typesetMath is off so a "$" in a label is never treated as LaTeX (and MathJax is not needed).
     """
     fig.show(config=CONFIG)
+
+
+def download_link(df: pd.DataFrame, filename: str, label: str) -> str:
+    """A button that downloads a table as CSV, built into the page (no separate file needed).
+
+    UTF-8 with a byte-order mark so Excel shows Turkish characters correctly.
+    """
+    import base64
+    data = ("\ufeff" + df.to_csv(index=False)).encode("utf-8")
+    href = "data:text/csv;charset=utf-8;base64," + base64.b64encode(data).decode("ascii")
+    return (f'<a class="btn btn-sm btn-outline-secondary me-2 mb-2" download="{filename}" href="{href}">'
+            f'<i class="bi bi-download"></i> {label}</a>')
 
 
 def html(fig, div_id: str | None = None) -> str:
