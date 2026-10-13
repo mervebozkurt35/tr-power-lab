@@ -4,8 +4,8 @@ subtitle: "Prices, generation and demand"
 ---
 
 ::: {.callout-note}
-## Coming in November 2026
-This page will show day ahead (PTF) and system marginal (SMF) prices, generation by source and consumption, with weekly, monthly and yearly views.
+## Now live: [electricity prices](prices.qmd)
+Day-ahead (PTF) and balancing (SMF) prices since 2011, with daily, weekly and monthly views. Generation and demand pages follow.
 :::
 
 ## What you will find here
