@@ -32,3 +32,9 @@ h1, h2, h3 { letter-spacing: -0.01em; text-wrap: balance; }
 .tile p { color: $secondary; margin-bottom: 0; font-size: .95rem; }
 table { font-variant-numeric: tabular-nums; }
 .callout-note { border-left-color: $primary !important; }
+
+// Form fields (search box, listing filter) on the dark background
+.form-control, .quarto-listing-filter .form-control, .input-group-text {
+  background-color: #152028 !important; color: $body-color !important; border-color: #25333C !important;
+}
+.form-control::placeholder { color: $secondary; }

@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PALETTE = json.loads((ROOT / "assets" / "palette.json").read_text(encoding="utf-8"))
 SURF = PALETTE["surfaces"]
 FONT = '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif'
+MODE = "dark"   # the site is dark only; the light values stay in palette.json in case that changes
 
 
 def colours(family: str, key: str, step: int = 1) -> dict:
@@ -48,7 +49,7 @@ def add_bar(fig, x, y, family: str, key: str, name: str | None = None, step: int
     c = colours(family, key, step)
     nm = name or label(family, key)
     fig.add_trace(go.Bar(
-        x=x, y=y, name=nm, marker=dict(color=c["light"], line=dict(width=1, color=SURF["light"]["surface"])),
+        x=x, y=y, name=nm, marker=dict(color=c[MODE], line=dict(width=1, color=SURF[MODE]["surface"])),
         hovertemplate=f"%{{y:{hover_fmt}}}{unit}<extra>{nm}</extra>",
         meta={"light": c["light"], "dark": c["dark"], "kind": "bar"},
     ))
@@ -61,7 +62,7 @@ def label(family: str, key: str) -> str:
 
 def figure(title: str | None = None, y_title: str | None = None, height: int = 420) -> go.Figure:
     """Empty figure with the site layout: transparent background, hairline grid, unified hover."""
-    s = SURF["light"]
+    s = SURF[MODE]
     fig = go.Figure()
     fig.update_layout(
         height=height,
@@ -92,13 +93,13 @@ def add_area(fig, x, y, family: str, key: str, name: str | None = None, hatch: b
     c = colours(family, key)
     trace = go.Scatter(
         x=x, y=y, name=name or label(family, key), mode="lines", stackgroup="one",
-        line=dict(width=1.5, color=SURF["light"]["surface"]),
-        fillcolor=c["light"],
+        line=dict(width=1.5, color=SURF[MODE]["surface"]),
+        fillcolor=c[MODE],
         hovertemplate=f"%{{y:{hover_fmt}}}{unit}<extra>{name or label(family, key)}</extra>",
         meta={"light": c["light"], "dark": c["dark"], "kind": "area", "hatch": hatch},
     )
     if hatch:
-        trace.update(fillpattern=dict(shape="/", fgcolor=c["light"], bgcolor="rgba(0,0,0,0)", size=6, solidity=0.45),
+        trace.update(fillpattern=dict(shape="/", fgcolor=c[MODE], bgcolor="rgba(0,0,0,0)", size=6, solidity=0.45),
                      fillcolor="rgba(0,0,0,0)")
     fig.add_trace(trace)
 
@@ -109,7 +110,7 @@ def add_line(fig, x, y, family: str, key: str, name: str | None = None, hover_fm
     c = colours(family, key)
     nm = name or label(family, key)
     fig.add_trace(go.Scatter(
-        x=x, y=y, name=nm, mode="lines", line=dict(width=2, color=c["light"], dash=dash),
+        x=x, y=y, name=nm, mode="lines", line=dict(width=2, color=c[MODE], dash=dash),
         hovertemplate=f"%{{y:{hover_fmt}}}{unit}<extra>{nm}</extra>",
         meta={"light": c["light"], "dark": c["dark"], "kind": "line"},
     ))
@@ -117,7 +118,7 @@ def add_line(fig, x, y, family: str, key: str, name: str | None = None, hover_fm
         s = pd.Series(list(y), index=list(x)).dropna()
         if len(s):
             fig.add_annotation(x=s.index[-1], y=s.iloc[-1], text=nm.split(" (")[0], showarrow=False,
-                               xanchor="left", xshift=6, font=dict(color=SURF["light"]["ink"], size=12),
+                               xanchor="left", xshift=6, font=dict(color=SURF[MODE]["ink"], size=12),
                                name="direct-label")
 
 
@@ -131,7 +132,7 @@ def add_events(fig, events: pd.DataFrame, series: str, include_draft: bool = Fal
     ev = events[events["series"].fillna("").str.split(";").apply(lambda s: series in s)]
     if not include_draft:
         ev = ev[ev["status"] == "verified"]
-    s = SURF["light"]
+    s = SURF[MODE]
     last = None
     for _, e in ev.sort_values("date").iterrows():
         d = pd.Timestamp(e["date"])
@@ -147,7 +148,7 @@ def add_events(fig, events: pd.DataFrame, series: str, include_draft: bool = Fal
 
 def style_controls(fig) -> None:
     """Quiet styling for time-step buttons (updatemenus) and range buttons, matching the site."""
-    s = SURF["light"]
+    s = SURF[MODE]
     both = "#7C8B94"  # mid grey: readable on the light and the dark surface
     for um in fig.layout.updatemenus or []:
         um.update(bgcolor="rgba(0,0,0,0)", bordercolor=both, borderwidth=1, font=dict(color=both, size=12))
