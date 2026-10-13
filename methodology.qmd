@@ -27,6 +27,12 @@ TR Power Lab is independent. It is not affiliated with EPİAŞ, TEİAŞ or EPDK.
 
 More definitions will be added as the reports grow.
 
+## Reuse {#reuse}
+
+- **Analysis, text and charts** are licensed under [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). You may reuse and adapt them, including commercially, as long as you credit TR Power Lab and link to the page you used. Suggested credit: *Source: TR Power Lab (trpowerlab.com)*.
+- **Code** in the [GitHub repository](https://github.com/mervebozkurt35/tr-power-lab) is released under the MIT licence.
+- **Underlying data** belong to their original publishers (EPİAŞ, EPDK, ENTSO-E and others). These licences do not cover the data. Please check each source's own terms before reusing it.
+
 ## Corrections
 
 If you find an error, please open an issue on [GitHub](https://github.com/mervebozkurt35/tr-power-lab/issues). Corrections are noted on the page where they apply.

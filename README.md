@@ -30,4 +30,6 @@ TR Power Lab is independent and not affiliated with EPİAŞ, TEİAŞ or EPDK.
 
 ## Licence
 
-Code is released under the MIT licence.
+- **Code:** MIT licence (see `LICENSE`).
+- **Analysis, text and charts on the site:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Reuse freely with credit to TR Power Lab.
+- **Data:** owned by the original publishers (EPİAŞ, EPDK, ENTSO-E). These licences do not cover the data.

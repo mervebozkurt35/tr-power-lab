@@ -45,8 +45,8 @@ website:
         href: https://github.com/mervebozkurt35/tr-power-lab
         aria-label: GitHub
   page-footer:
-    left: "© 2026 TR Power Lab · Independent analysis, not affiliated with EPİAŞ, TEİAŞ or EPDK."
-    right: "Data: EPİAŞ Şeffaflık Platformu and other sources listed in the [methodology](/methodology.qmd)."
+    left: "© 2026 TR Power Lab · Analysis and charts under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), code under MIT · Independent, not affiliated with EPİAŞ, TEİAŞ or EPDK."
+    right: "Data belong to EPİAŞ Şeffaflık Platformu and the other sources listed in the [methodology](/methodology.qmd#reuse)."
 
 format:
   html:
