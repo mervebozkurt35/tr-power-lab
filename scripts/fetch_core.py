@@ -265,17 +265,30 @@ def load(series: str, start: date, end: date) -> pd.DataFrame:
     files = sorted((RAW / series).glob("*.csv"))
     if not files:
         sys.exit(f"No raw {series} files. Run without --skip-download first.")
-    df = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
+    df = pd.concat((pd.read_csv(f).assign(_file=f.stem) for f in files), ignore_index=True)
 
     # EPİAŞ timestamps are ISO strings with +03:00; each one marks the start of the hour.
     df["time"] = pd.to_datetime(df["date"], utc=True, format="ISO8601").dt.tz_convert(TZ)
     df = df.drop(columns=[c for c in ("date", "hour") if c in df.columns])
     df = df[(df["time"].dt.date >= start) & (df["time"].dt.date <= end)]
 
-    dupes = df["time"].duplicated(keep="last")
-    if dupes.any():
-        notes.append(f"{series}: dropped {dupes.sum()} duplicate hours (kept the latest download).")
-        df = df[~dupes]
+    # An hour can appear in two monthly files (older downloads were not trimmed to their month, and
+    # EPİAŞ sometimes returns the day before the start date). Keep the copy from the file of the
+    # hour's own month, and report hours where the two copies disagree.
+    own = df["time"].dt.strftime("%Y-%m") == df["_file"]
+    df = df.assign(_own=own).sort_values(["time", "_own"])
+    dup_all = df["time"].duplicated(keep=False)
+    if dup_all.any():
+        vals = [c for c in df.columns if c not in ("time", "_file", "_own")]
+        differ = df[dup_all].groupby("time")[vals].nunique(dropna=False).gt(1).any(axis=1)
+        n = int(df["time"].duplicated().sum())
+        msg = f"{series}: {n} hours appeared twice; kept the copy from the hour's own monthly file."
+        if differ.any():
+            days = sorted({t.date().isoformat() for t in differ[differ].index})
+            msg += f" Values differed in {int(differ.sum())} of them ({', '.join(days[:6])})."
+        notes.append(msg)
+        df = df[~df["time"].duplicated(keep="last")]
+    df = df.drop(columns=["_file", "_own"])
 
     df = df.set_index("time").sort_index()
     expected = pd.date_range(df.index.min().floor("D"), df.index.max().floor("D") + pd.Timedelta(hours=23),
