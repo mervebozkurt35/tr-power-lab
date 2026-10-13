@@ -1,0 +1,208 @@
+---
+aliases:
+  - ../../markets/turkiye/prices.html
+title: "Electricity prices"
+subtitle: "Day-ahead (PTF) and balancing (SMF) prices in Türkiye since 2011"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+d = pd.read_csv(ROOT / "data/processed/core_daily.csv", parse_dates=["date"]).set_index("date")
+m = pd.read_csv(ROOT / "data/processed/core_monthly.csv")
+m["month"] = pd.to_datetime(m["month"])
+m = m.set_index("month")
+events = pd.read_csv(ROOT / "data/events.csv")
+
+d = d[d["hours_with_price"] >= 20]            # skip days with too few published hours
+last = d.index.max()
+fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
+```
+
+```{python}
+#| label: tiles
+def window(days, end=last):
+    return d.loc[end - pd.Timedelta(days=days - 1): end]
+
+w30 = window(30)
+w30_ly = window(30, last - pd.DateOffset(years=1))
+ytd = d.loc[f"{last.year}-01-01": last]
+chg = (w30["ptf_eur_mean"].mean() / w30_ly["ptf_eur_mean"].mean() - 1) * 100
+
+tiles = [
+    (f"PTF on {last:%d %b %Y}", f"{fmt(d.loc[last, 'ptf_mean'])} TL/MWh",
+     f"{fmt(d.loc[last, 'ptf_eur_mean'], 1)} EUR/MWh · SMF {fmt(d.loc[last, 'smf_mean'])} TL/MWh"),
+    ("PTF, last 30 days", f"{fmt(w30['ptf_mean'].mean())} TL/MWh",
+     f"{fmt(w30['ptf_eur_mean'].mean(), 1)} EUR/MWh · {chg:+.0f}% in EUR vs a year earlier".replace("-", "−")),
+    (f"PTF, {last.year} so far", f"{fmt(ytd['ptf_mean'].mean())} TL/MWh",
+     f"{fmt(ytd['ptf_eur_mean'].mean(), 1)} EUR/MWh · simple average of daily means"),
+]
+HTML('<div class="tile-grid">' + "".join(
+    f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
+```
+
+## Daily, weekly and monthly prices
+
+PTF is the hourly price set in the day-ahead market (GÖP). SMF is the price of the last balancing instruction the system operator used in each hour (DGP). Both are averages of hourly prices in Turkish lira. Use the buttons to change the time step and the range.
+
+```{python}
+#| label: price-chart
+import plotly.graph_objects as go
+
+weekly = d[["ptf_mean", "smf_mean"]].resample("W-MON", label="left", closed="left").mean()
+monthly = m[["ptf_mean", "smf_mean"]]
+views = {"Daily": d[["ptf_mean", "smf_mean"]], "Weekly": weekly, "Monthly": monthly}
+
+fig = cs.figure(None, "TL/MWh", height=460)
+for i, (name, df) in enumerate(views.items()):
+    for key, col in (("ptf", "ptf_mean"), ("smf", "smf_mean")):
+        cs.add_line(fig, df.index, df[col], "prices", key, unit=" TL/MWh", end_label=False)
+        fig.data[-1].update(visible=(name == "Weekly"), legendgroup=key, showlegend=(name == "Weekly"))
+
+n = len(fig.data)
+buttons = []
+for i, name in enumerate(views):
+    vis = [j // 2 == i for j in range(n)]
+    buttons.append(dict(label=name, method="update", args=[{"visible": vis, "showlegend": vis}]))
+fig.update_layout(
+    updatemenus=[dict(type="buttons", direction="right", buttons=buttons, active=1, x=0, y=1.04,
+                      xanchor="left", yanchor="bottom", showactive=True, pad=dict(r=6, t=0),
+                      font=dict(size=12))],
+    margin=dict(t=40),
+)
+fig.update_xaxes(
+    range=[last - pd.DateOffset(years=2), last],
+    rangeselector=dict(buttons=[dict(count=3, label="3M", step="month", stepmode="backward"),
+                                dict(count=1, label="1Y", step="year", stepmode="backward"),
+                                dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                dict(step="all", label="All")],
+                       x=1, xanchor="right", y=1.04, yanchor="bottom", font=dict(size=12)),
+)
+cs.add_events(fig, events, "ptf")
+cs.style_controls(fig)
+cs.show(fig)
+```
+
+## The long view in euros
+
+Lira prices rose more than twentyfold between 2011 and 2026, mostly because of inflation and the weaker lira, so a long lira series hides real changes. EPİAŞ also publishes every hourly PTF in euros and US dollars, converted at that day's exchange rate. The chart shows weekly averages in either currency. Switch to **Log** to compare changes in percentage terms: on a log scale a doubling looks the same in 2013 and in 2022, so quieter years are no longer flattened by the 2022 gas crisis.
+
+```{python}
+#| label: long-chart
+# Weekly averages of the daily EUR and USD prices; weeks with fewer than 5 days of data are left out.
+wk = d[["ptf_eur_mean", "ptf_usd_mean"]].resample("W-MON", label="left", closed="left")
+wk = wk.mean().where(wk.count() >= 5)
+cur = {"EUR": ("ptf_eur_mean", "EUR/MWh"), "USD": ("ptf_usd_mean", "USD/MWh")}
+
+fig2 = cs.figure(None, "Weekly average PTF (EUR/MWh)", height=420)
+for name, (col, unit) in cur.items():
+    cs.add_line(fig2, wk.index, wk[col], "prices", "ptf", name=f"PTF in {name}", unit=f" {unit}",
+                hover_fmt=",.1f", end_label=False)
+    fig2.data[-1].update(visible=(name == "EUR"), line=dict(width=1.5))
+fig2.update_layout(
+    showlegend=False,
+    margin=dict(t=48),
+    updatemenus=[
+        dict(type="buttons", direction="right", active=0, x=0, y=1.03, xanchor="left", yanchor="bottom",
+             buttons=[dict(label=k, method="update",
+                           args=[{"visible": [j == i for j in range(len(cur))]},
+                                 {"yaxis.title.text": f"Weekly average PTF ({cur[k][1]})", "yaxis.autorange": True}])
+                      for i, k in enumerate(cur)]),
+        dict(type="buttons", direction="right", active=0, x=0.2, y=1.03, xanchor="left", yanchor="bottom",
+             buttons=[dict(label="Linear", method="relayout",
+                           args=[{"yaxis.type": "linear", "yaxis.autorange": True, "yaxis.tickvals": None}]),
+                      dict(label="Log", method="relayout",
+                           args=[{"yaxis.type": "log", "yaxis.autorange": True,
+                                  "yaxis.tickvals": [5, 10, 20, 50, 100, 200, 500]}])]),
+    ],
+)
+fig2.update_yaxes(autorange=True, rangemode="tozero")
+fig2.update_xaxes(rangeselector=dict(buttons=[dict(count=2, label="2Y", step="year", stepmode="backward"),
+                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig2)
+cs.show(fig2)
+```
+
+## Yearly averages
+
+```{python}
+#| label: yearly-table
+y = m.copy()
+y["year"] = y.index.year
+h = y["hours_with_price"]
+agg = pd.DataFrame({
+    "PTF (TL/MWh)": (y["ptf_mean"] * h).groupby(y["year"]).sum() / h.groupby(y["year"]).sum(),
+    "PTF (EUR/MWh)": (y["ptf_eur_mean"] * h).groupby(y["year"]).sum() / h.where(y["ptf_eur_mean"].notna()).groupby(y["year"]).sum(),
+    "PTF (USD/MWh)": (y["ptf_usd_mean"] * h).groupby(y["year"]).sum() / h.where(y["ptf_usd_mean"].notna()).groupby(y["year"]).sum(),
+    "SMF (TL/MWh)": (y["smf_mean"] * h).groupby(y["year"]).sum() / h.where(y["smf_mean"].notna()).groupby(y["year"]).sum(),
+    "Hours system short": (y["deficit_share"] * h).groupby(y["year"]).sum() / h.where(y["deficit_share"].notna()).groupby(y["year"]).sum(),
+})
+agg = agg.sort_index(ascending=False)
+partial = {agg.index.max(): f"{agg.index.max()} (to {last:%d %b})", agg.index.min(): f"{agg.index.min()} (from Nov)"}
+agg.index = [partial.get(i, str(i)) for i in agg.index]
+out = agg.copy()
+for c in ["PTF (TL/MWh)", "SMF (TL/MWh)"]:
+    out[c] = agg[c].map(lambda v: fmt(v))
+for c in ["PTF (EUR/MWh)", "PTF (USD/MWh)"]:
+    out[c] = agg[c].map(lambda v: fmt(v, 1))
+out["Hours system short"] = agg["Hours system short"].map(lambda v: "–" if pd.isna(v) else f"{v:.0%}")
+Markdown(out.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(out.columns)))
+```
+
+Yearly figures are simple averages of hourly prices: every hour counts the same. SMF starts in April 2014 on the transparency platform. "Hours system short" is the share of hours in which the system needed extra energy (Enerji Açığı), so balancing instructions were mostly to increase output.
+
+### Download the data
+
+```{python}
+#| label: downloads
+cols = {"ptf_mean": "ptf_try_mwh", "ptf_cons_weighted": "ptf_consumption_weighted_try_mwh",
+        "ptf_min": "ptf_min_try_mwh", "ptf_max": "ptf_max_try_mwh", "ptf_eur_mean": "ptf_eur_mwh",
+        "ptf_usd_mean": "ptf_usd_mwh", "smf_mean": "smf_try_mwh",
+        "deficit_share": "share_hours_system_short", "surplus_share": "share_hours_system_long"}
+yearly = agg.copy()
+yearly.index = [int(str(i)[:4]) for i in yearly.index]
+yearly = yearly.rename_axis("year").reset_index().rename(columns={
+    "PTF (TL/MWh)": "ptf_try_mwh", "PTF (EUR/MWh)": "ptf_eur_mwh", "PTF (USD/MWh)": "ptf_usd_mwh",
+    "SMF (TL/MWh)": "smf_try_mwh", "Hours system short": "share_hours_system_short"}).round(4)
+monthly_dl = m[list(cols)].rename(columns=cols).round(4)
+monthly_dl.index = monthly_dl.index.strftime("%Y-%m")
+daily_dl = d[list(cols)].rename(columns=cols).round(4)
+daily_dl.index = daily_dl.index.strftime("%Y-%m-%d")
+stamp = f"{last:%Y%m%d}"
+HTML(
+    cs.download_link(yearly, f"trpowerlab_prices_yearly_{stamp}.csv", "Yearly (CSV)")
+    + cs.download_link(monthly_dl.rename_axis("month").reset_index(), f"trpowerlab_prices_monthly_{stamp}.csv", "Monthly (CSV)")
+    + cs.download_link(daily_dl.rename_axis("date").reset_index(), f"trpowerlab_prices_daily_{stamp}.csv", "Daily (CSV)")
+)
+```
+
+Prices are averages of EPİAŞ hourly data, in Turkish lira, euros or US dollars per MWh; shares are fractions of hours (0.65 = 65%). Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*. The averages are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the underlying data belong to EPİAŞ.
+
+## Where electricity is traded
+
+::: {.callout-note}
+## Coming in November 2026
+The share of electricity traded in the day-ahead market (GÖP), the intraday market (GİP) and through bilateral contracts, daily, monthly and yearly, next to the prices each market sets.
+:::
+
+## Notes
+
+- **Source:** EPİAŞ Şeffaflık Platformu, through the open source [eptr2](https://github.com/Tideseed/eptr2) package. Data to `{python} f"{last:%d %B %Y}"`.
+- **Price caps:** PTF and SMF are limited by a maximum settlement price set by EPDK. The cap changed several times since 2022; monthly maximum prices sit on the cap in many months.
+- **Gaps:** a few hours on old daylight saving days are missing in the source data and are left out, not filled.
+- See the [methodology](../../methodology.qmd) for definitions and the data quality notes.

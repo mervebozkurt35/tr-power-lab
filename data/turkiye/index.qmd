@@ -1,0 +1,202 @@
+---
+aliases:
+  - ../../markets/turkiye/index.html
+title: "Türkiye electricity market overview"
+subtitle: "The latest month and year so far, compared with a year earlier"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+from IPython.display import HTML, Markdown
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+d = pd.read_csv(ROOT / "data/processed/core_daily.csv", parse_dates=["date"]).set_index("date")
+m = pd.read_csv(ROOT / "data/processed/core_monthly.csv", parse_dates=["month"]).set_index("month")
+S = cs.SURF[cs.MODE]
+
+RENEW = ["geothermal_mwh", "biomass_mwh", "hydro_dam_mwh", "hydro_river_mwh", "wind_mwh", "solar_mwh"]
+SOURCES = {"gas": ["gas_mwh"], "coal": ["lignite_mwh", "imported_coal_mwh", "hard_coal_mwh"],
+           "hydro": ["hydro_dam_mwh", "hydro_river_mwh"], "wind": ["wind_mwh"], "solar": ["solar_mwh"],
+           "geothermal": ["geothermal_mwh"], "biomass": ["biomass_mwh"]}
+
+def add_metrics(df):
+    df = df.copy()
+    df["like_for_like"] = df["consumption_mwh"] - df["embedded_gen_est_mwh"].fillna(0).clip(lower=0)
+    df["renew_share"] = df[RENEW].sum(axis=1, min_count=1) / df["total_mwh"]
+    return df
+
+m = add_metrics(m)
+# Latest complete month: every hour of the month has a price and generation data.
+days = m.index.days_in_month
+full = (m["hours_with_price"] >= days * 24 - 1) & m["total_mwh"].notna()
+cur = m[full].index.max()
+prev, ly = cur - pd.DateOffset(months=1), cur - pd.DateOffset(years=1)
+last = d[d["ptf_mean"].notna()].index.max()
+
+def pct(a, b):
+    return (a / b - 1) * 100 if pd.notna(a) and pd.notna(b) and b else float("nan")
+
+def move(p, unit="%", flat=0.5):
+    """'up 6.9%' / 'down 13.3%' / 'about unchanged', with a proper minus sign."""
+    if pd.isna(p):
+        return "not comparable"
+    if abs(p) < flat:
+        return "about unchanged"
+    return f"{'up' if p > 0 else 'down'} {abs(p):.1f}{unit}"
+
+def pts(a, b):
+    """Change in percentage points between two shares."""
+    return (a - b) * 100
+
+mon = lambda t: f"{t:%B %Y}"
+```
+
+```{python}
+#| label: summary
+r, rp, ry = m.loc[cur], m.loc[prev], m.loc[ly]
+
+# Year to date against the same days a year earlier.
+ytd = add_metrics(d.loc[f"{last.year}-01-01": last])
+ytd_ly = add_metrics(d.loc[f"{last.year - 1}-01-01": last - pd.DateOffset(years=1)])
+p_ytd, p_ytd_ly = ytd["ptf_eur_mean"].mean(), ytd_ly["ptf_eur_mean"].mean()
+c_ytd, c_ytd_ly = ytd["consumption_mwh"].sum() / 1e6, ytd_ly["consumption_mwh"].sum() / 1e6
+l_ytd, l_ytd_ly = ytd["like_for_like"].sum() / 1e6, ytd_ly["like_for_like"].sum() / 1e6
+
+# Generation: the source whose output changed most against the same month last year.
+src_now = {k: r[c].sum() / 1e6 for k, c in SOURCES.items()}
+src_ly = {k: ry[c].sum() / 1e6 for k, c in SOURCES.items()}
+mover = max(src_now, key=lambda k: abs(src_now[k] - src_ly[k]))
+dmov = src_now[mover] - src_ly[mover]
+peak_day = d.loc[cur: cur + pd.offsets.MonthEnd(0), "peak_consumption_mw"].idxmax()
+
+price = (f"**Prices.** {cur:%B}'s average PTF was **{r['ptf_eur_mean']:.1f} EUR/MWh** ({r['ptf_mean']:,.0f} TL/MWh), "
+         f"{move(pct(r['ptf_eur_mean'], rp['ptf_eur_mean']))} on {prev:%B} and "
+         f"{move(pct(r['ptf_eur_mean'], ry['ptf_eur_mean']))} on {mon(ly)} in euro terms. "
+         f"So far in {last.year} PTF averages {p_ytd:.1f} EUR/MWh, {move(pct(p_ytd, p_ytd_ly))} on the same period of {last.year - 1}. "
+         f"SMF averaged {r['smf_mean']:,.0f} TL/MWh, and the system was short in {r['deficit_share']:.0%} of hours "
+         f"({ry['deficit_share']:.0%} a year earlier).")
+demand = (f"**Demand.** Consumption in {cur:%B} was **{r['consumption_mwh'] / 1e6:.1f} TWh**, "
+          f"{move(pct(r['consumption_mwh'], ry['consumption_mwh']))} on {mon(ly)} as reported and "
+          f"{move(pct(r['like_for_like'], ry['like_for_like']))} like-for-like, without unmetered generation. "
+          f"Demand peaked at {d.loc[peak_day, 'peak_consumption_mw']:,.0f} MW on {peak_day.day} {peak_day:%B}. "
+          f"Year to date, consumption is {move(pct(c_ytd, c_ytd_ly))} as reported and {move(pct(l_ytd, l_ytd_ly))} like-for-like.")
+gen = (f"**Generation.** Renewables supplied **{r['renew_share']:.0%}** of metered generation in {cur:%B}, "
+       f"against {ry['renew_share']:.0%} in {mon(ly)}. The biggest change from a year earlier was in "
+       f"{cs.label('generation', mover).lower()}, {'+' if dmov > 0 else '−'}{abs(dmov):.1f} TWh "
+       f"({src_now[mover]:.1f} TWh against {src_ly[mover]:.1f} TWh).")
+
+HTML(f'<p class="eyebrow">Latest full month: {mon(cur)} · data to {last:%d %B %Y}</p>')
+```
+
+```{python}
+#| output: asis
+print(price + "\n\n" + demand + "\n\n" + gen)
+```
+
+## Key figures
+
+```{python}
+#| label: key-table
+rows = [
+    ("PTF (EUR/MWh)", "ptf_eur_mean", lambda v: f"{v:,.1f}", "pct"),
+    ("PTF (TL/MWh)", "ptf_mean", lambda v: f"{v:,.0f}", "pct"),
+    ("SMF (TL/MWh)", "smf_mean", lambda v: f"{v:,.0f}", "pct"),
+    ("Hours system short", "deficit_share", lambda v: f"{v:.0%}", "pts"),
+    ("Consumption, reported (TWh)", "consumption_mwh", lambda v: f"{v / 1e6:,.1f}", "pct"),
+    ("Consumption, like-for-like (TWh)", "like_for_like", lambda v: f"{v / 1e6:,.1f}", "pct"),
+    ("Metered generation (TWh)", "total_mwh", lambda v: f"{v / 1e6:,.1f}", "pct"),
+    ("Renewable share of generation", "renew_share", lambda v: f"{v:.0%}", "pts"),
+    ("Peak demand (MW)", "peak_consumption_mw", lambda v: f"{v:,.0f}", "pct"),
+]
+def change(kind, a, b):
+    if pd.isna(a) or pd.isna(b):
+        return "–"
+    v = pts(a, b) if kind == "pts" else pct(a, b)
+    return (f"{v:+.1f} pts" if kind == "pts" else f"{v:+.1f}%").replace("-", "−")
+
+tab = pd.DataFrame([{
+    "": name, mon(cur): f(r[col]), f"vs {prev:%b %Y}": change(kind, r[col], rp[col]),
+    f"vs {ly:%b %Y}": change(kind, r[col], ry[col])} for name, col, f, kind in rows]).set_index("")
+Markdown(tab.to_markdown(disable_numparse=True, colalign=["left", "right", "right", "right"]))
+```
+
+Changes in prices and quantities are percentages; changes in shares are percentage points. Compare with the same month a year earlier for trends: month-on-month changes are mostly the seasons.
+
+## The last two years at a glance
+
+```{python}
+#| label: small-multiples
+w = m.loc[cur - pd.DateOffset(months=23): cur]
+panels = [("PTF (EUR/MWh)", w["ptf_eur_mean"], ("prices", "ptf"), ",.1f"),
+          ("Consumption (TWh)", w["consumption_mwh"] / 1e6, ("single", ""), ",.1f"),
+          ("Renewable share (%)", w["renew_share"] * 100, ("generation", "hydro"), ".0f"),
+          ("Hours system short (%)", w["deficit_share"] * 100, ("balancing", "up"), ".0f")]
+fig = make_subplots(rows=2, cols=2, subplot_titles=[p[0] for p in panels], vertical_spacing=0.18, horizontal_spacing=0.08)
+base = cs.figure(None, None, height=520)
+for i, (name, y, (fam, key), f) in enumerate(panels):
+    c = cs.colours(fam, key)[cs.MODE]
+    fig.add_trace(go.Scatter(x=w.index, y=y, mode="lines+markers", name=name, line=dict(color=c, width=2),
+                             marker=dict(size=4, color=c), hovertemplate=f"%{{x|%b %Y}}: %{{y:{f}}}<extra>{name}</extra>"),
+                  row=i // 2 + 1, col=i % 2 + 1)
+fig.update_layout(base.layout, showlegend=False, hovermode="closest", margin=dict(t=40, l=8, r=8, b=8))
+fig.update_xaxes(showgrid=False, linecolor=S["axis"], tickfont=dict(color=S["ink_muted"], size=11), dtick="M6", tickformat="%b %y")
+fig.update_yaxes(gridcolor=S["grid"], tickfont=dict(color=S["ink_muted"], size=11), zeroline=False)
+for a in fig.layout.annotations:
+    a.update(font=dict(size=13, color=S["ink"]))
+cs.show(fig)
+```
+
+## Yearly averages
+
+```{python}
+#| label: yearly
+yrs = [y for y in range(last.year - 4, last.year + 1)]
+h = m["hours_with_price"]
+def wavg(col):
+    return (m[col] * h).groupby(m.index.year).sum() / h.where(m[col].notna()).groupby(m.index.year).sum()
+yt = pd.DataFrame({
+    "PTF (EUR/MWh)": wavg("ptf_eur_mean").map(lambda v: f"{v:,.1f}"),
+    "PTF (TL/MWh)": wavg("ptf_mean").map(lambda v: f"{v:,.0f}"),
+    "SMF (TL/MWh)": wavg("smf_mean").map(lambda v: f"{v:,.0f}"),
+    "Consumption (TWh)": (m["consumption_mwh"].groupby(m.index.year).sum() / 1e6).map(lambda v: f"{v:,.1f}"),
+    "Renewable share": (m[RENEW].sum(axis=1).groupby(m.index.year).sum() / m["total_mwh"].groupby(m.index.year).sum()).map(lambda v: f"{v:.0%}"),
+}).loc[yrs].sort_index(ascending=False)
+yt.index = [f"{y} (to {last:%d %b})" if y == last.year else str(y) for y in yt.index]
+Markdown(yt.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(yt.columns)))
+```
+
+Averages of hourly prices; consumption as reported. The current year is partial, so compare it with the year-to-date figures above rather than with full years.
+
+## Explore
+
+::: {.tile-grid}
+::: {.tile}
+### [Prices](prices.qmd)
+PTF and SMF since 2011, daily to yearly, in lira, euros and dollars.
+:::
+
+::: {.tile}
+### [Generation and demand](generation.qmd)
+Generation by source since 2014 and consumption since 2016.
+:::
+
+::: {.tile}
+### [Volatility](volatility.qmd)
+Daily spreads, balancing costs and intraday volatility. Coming in November.
+:::
+:::
+
+Source: EPİAŞ Şeffaflık Platformu. See the [methodology](../../methodology.qmd) for definitions and data quality notes.

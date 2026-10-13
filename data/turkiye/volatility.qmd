@@ -1,0 +1,17 @@
+---
+title: "Price volatility"
+subtitle: "How much prices move within the day and between markets"
+---
+
+::: {.callout-note}
+## Coming in November 2026
+This page will measure how volatile Türkiye's electricity prices are, from the same hourly data as the [prices](prices.qmd) page.
+:::
+
+## What this page will show
+
+- **Daily price spread:** the gap between the highest and lowest hourly PTF of each day. It is a first estimate of what a battery could earn from one charge and discharge per day.
+- **Volatility within the day:** how far hourly prices move around the daily average.
+- **Balancing versus day-ahead:** the gap between SMF and PTF, split by whether the system was short or long. It shows what it costs to be out of balance.
+- **Hours at the limits:** how many hours each month the price sat at the cap or at zero.
+- **Intraday market (GİP):** the spread of intraday trade prices around their volume-weighted median for each contract, a measure of how much a perfectly informed trader could have earned. This needs the intraday trade data, which is added later.
