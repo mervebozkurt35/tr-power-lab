@@ -1,0 +1,28 @@
+# Data
+
+The site is built on three layers, so history is collected once and every later run only adds new days.
+
+| Layer | Where | What it holds | In the public repo |
+|---|---|---|---|
+| Raw | `data/raw/` (kept in Google Drive) | Hourly data exactly as EPİAŞ returns it, one file per series and month | No |
+| Processed | `data/processed/` | Cleaned daily and monthly series that charts and reports read | Daily and monthly only |
+| Events | `data/events.csv` | Dated structural changes that charts annotate and reports refer to | Yes |
+
+## How updates work
+
+`scripts/fetch_core.py` keeps the full history on disk. Each run skips months it already has, re-downloads only the most recent months (EPİAŞ revises them), and rebuilds the processed files. Adding a new series means adding it to the script once; the first run backfills its whole history and later runs keep it current.
+
+## Events file
+
+One row per event. Charts draw a marker for every row with `status = verified` whose `series` matches the chart.
+
+| Column | Meaning |
+|---|---|
+| `date` | Day the change took effect (YYYY-MM-DD) |
+| `end_date` | Optional, for periods such as a drought or a lockdown |
+| `category` | `regulation`, `market_design`, `macro`, `weather`, `supply`, `demand`, `geopolitics` or `data` |
+| `title` | Short label shown on the chart |
+| `description` | One or two sentences, with what the data shows |
+| `series` | Which series it relates to, separated by `;` (for example `ptf;smf`) |
+| `source` | Link to the decision, law or news item; `observed in data` until confirmed |
+| `status` | `draft` until the date and source are confirmed, then `verified` |
