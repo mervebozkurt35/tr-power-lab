@@ -1,0 +1,16 @@
+---
+title: "About"
+toc: false
+---
+
+TR Power Lab is an independent project on Türkiye's electricity market. It publishes market data, monthly analysis, tools and lessons, all built on public sources with open code.
+
+## Who runs it
+
+I am Merve, an energy economist. I hold an MSc in the Economics of Energy, Climate Change and Sustainability from the Barcelona School of Economics. My work focuses on electricity markets, market design and the economics of storage and renewables.
+
+*Edit this section: add your full name, a photo if you like, and your LinkedIn link.*
+
+## Contact
+
+*Add your preferred contact here, for example LinkedIn.*

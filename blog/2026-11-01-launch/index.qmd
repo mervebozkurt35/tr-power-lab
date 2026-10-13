@@ -1,0 +1,15 @@
+---
+title: "Why I built TR Power Lab"
+date: 2026-11-01
+categories: [news]
+description: "A public data site on Türkiye's electricity market."
+draft: true   # stays hidden until you change this to false
+---
+
+Draft. Write the launch post here.
+
+Points to cover:
+
+- What the site shows today and what comes next.
+- Why public, reproducible analysis of the Turkish market is useful.
+- Who you are and how readers can reach you.

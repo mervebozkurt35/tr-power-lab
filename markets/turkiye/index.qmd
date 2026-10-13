@@ -1,0 +1,17 @@
+---
+title: "Türkiye"
+subtitle: "Prices, generation and demand"
+---
+
+::: {.callout-note}
+## Coming in November 2026
+This page will show day ahead (PTF) and system marginal (SMF) prices, generation by source and consumption, with weekly, monthly and yearly views.
+:::
+
+## What you will find here
+
+- **Prices:** PTF and SMF by hour, day and month.
+- **Generation mix:** output by source, with year on year comparisons.
+- **Demand:** hourly consumption and its seasonal pattern.
+
+All figures come from the EPİAŞ Şeffaflık Platformu. See the [methodology](../../methodology.qmd) for definitions and processing steps.

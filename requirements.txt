@@ -1,0 +1,5 @@
+# Python packages for the data scripts and for pages that run code
+eptr2[allextras]   # EPİAŞ Şeffaflık Platformu client
+pandas             # tables and time series
+plotly             # interactive charts
+jupyter            # lets Quarto run Python code inside pages

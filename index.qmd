@@ -1,0 +1,48 @@
+---
+title: "TR Power Lab"
+subtitle: "Data and analysis on Türkiye's electricity market"
+toc: false
+listing:
+  id: latest
+  contents:
+    - "blog/*/index.qmd"
+    - "reports/*/index.qmd"
+  sort: "date desc"
+  type: table
+  max-items: 5
+  fields: [date, title, categories]
+
+---
+
+::: {.eyebrow}
+Independent analysis
+:::
+
+TR Power Lab tracks Türkiye's electricity market with public data. It turns hourly prices, generation and trading data into charts, monthly reports and tools for people who work in or invest in the market.
+
+::: {.tile-grid}
+::: {.tile}
+### [Markets](markets/turkiye/index.qmd)
+Day ahead and intraday prices, system prices, generation and demand.
+:::
+
+::: {.tile}
+### [Monthly reports](reports/index.qmd)
+What happened in the market each month, why, and what it means for investors, battery owners and traders.
+:::
+
+::: {.tile}
+### [Tools](tools/index.qmd)
+Calculators for battery revenues, imbalance costs and more.
+:::
+
+::: {.tile}
+### [Learn](learn/index.qmd)
+How the Turkish electricity market works, from GÖP to imbalance settlement.
+:::
+:::
+
+## Latest
+
+::: {#latest}
+:::

@@ -1,0 +1,11 @@
+---
+title: "Neighbouring markets"
+subtitle: "Greece, Bulgaria and the links with Türkiye"
+---
+
+::: {.callout-note}
+## Planned
+This section will compare Türkiye with its neighbouring markets.
+:::
+
+Türkiye's grid runs in sync with the continental European grid. Türkiye is not part of EU market coupling, so capacity on its borders with Greece and Bulgaria is sold in separate auctions. Price differences across these borders are one of the topics this section will follow.

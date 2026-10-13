@@ -1,0 +1,14 @@
+---
+title: "Monthly reports"
+subtitle: "One issue a month, published in the first week"
+listing:
+  contents: "*/index.qmd"
+  sort: "date desc"
+  type: default
+  categories: true
+
+---
+
+Each issue covers prices, the gap between the day ahead and intraday markets, battery spreads, solar capture prices and system direction. It ends with what the month means for investors, battery owners, asset managers and aggregators.
+
+The first issue, covering October 2026, is planned for mid November.

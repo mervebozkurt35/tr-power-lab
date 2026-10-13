@@ -1,0 +1,20 @@
+---
+title: "Learn"
+subtitle: "How the Turkish electricity market works"
+---
+
+::: {.callout-note}
+## Planned from January 2027
+Short lessons with quizzes, published every two weeks.
+:::
+
+Planned topics:
+
+- Market basics and the main institutions
+- The day ahead market (GÖP)
+- The intraday market (GİP)
+- Balancing, imbalance and settlement
+- Bilateral contracts
+- YEKDEM and renewable support
+- Licensing
+- The legislation tree: laws, regulations, procedures and board decisions, each linked to its official text

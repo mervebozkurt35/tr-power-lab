@@ -1,0 +1,44 @@
+/*-- scss:defaults --*/
+// TR Power Lab light palette: deep teal accent on a cool, slightly blue grey.
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+$primary:          #0B6E69;   // accent: links, buttons, highlights
+$body-bg:          #F7F9FA;   // page background
+$body-color:       #15212A;   // main text
+$secondary:        #5A6A75;   // muted text
+$navbar-bg:        #10232B;   // dark navy navbar
+$navbar-fg:        #E6EEF1;
+$navbar-hl:        #5FD0C8;
+$footer-bg:        #EEF2F4;
+$footer-fg:        #5A6A75;
+$link-color:       $primary;
+
+$font-family-sans-serif: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+$font-family-monospace:  "IBM Plex Mono", ui-monospace, Menlo, monospace;
+$headings-font-family:   "Archivo", "Helvetica Neue", Arial, sans-serif;
+$headings-font-weight:   700;
+$font-size-base:         1.02rem;
+$line-height-base:       1.6;
+
+/*-- scss:rules --*/
+h1, h2, h3 { letter-spacing: -0.01em; text-wrap: balance; }
+.navbar-title { font-family: "Archivo", sans-serif; font-weight: 700; letter-spacing: 0.01em; }
+
+// A thin rule under page titles
+.quarto-title-block .quarto-title { border-bottom: 2px solid $primary; padding-bottom: .4rem; }
+
+// Small uppercase label above headings, used on the home page
+.eyebrow { font-family: $font-family-monospace; font-size: .8rem; letter-spacing: .08em;
+           text-transform: uppercase; color: $primary; margin-bottom: .25rem; }
+
+// Cards for the home page sections
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.tile { background: #FFFFFF; border: 1px solid #D8E0E4; border-radius: 8px; padding: 1rem 1.1rem; }
+.tile h3 { font-size: 1.05rem; margin-top: 0; }
+.tile p { color: $secondary; margin-bottom: 0; font-size: .95rem; }
+
+// Numbers line up in tables
+table { font-variant-numeric: tabular-nums; }
+
+// "Coming soon" notes
+.callout-note { border-left-color: $primary !important; }

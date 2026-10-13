@@ -1,0 +1,16 @@
+---
+title: "Tools"
+subtitle: "Calculators and simulations"
+---
+
+::: {.callout-note}
+## Planned for spring 2027
+These tools will run in your browser. No sign up needed.
+:::
+
+- **Battery revenue calculator:** choose power, duration and efficiency, see what a battery would have earned from day ahead price spreads.
+- **Imbalance cost calculator:** see what forecast errors cost a plant at real imbalance prices.
+- **Bill estimator:** see how a household bill splits into energy, network and taxes.
+- **GÖP or GİP explorer:** compare day ahead and intraday prices by hour.
+
+A market bidding game is planned as a separate app.

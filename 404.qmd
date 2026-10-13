@@ -1,0 +1,6 @@
+---
+title: "Page not found"
+toc: false
+---
+
+This page does not exist or has moved. Go to the [home page](/index.qmd) or use the search at the top.

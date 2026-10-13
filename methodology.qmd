@@ -1,0 +1,32 @@
+---
+title: "Methodology"
+subtitle: "Sources, definitions and how the data is processed"
+---
+
+## Sources
+
+| Source | What it provides | How it is accessed |
+|---|---|---|
+| EPİAŞ Şeffaflık Platformu | Prices, volumes, generation, consumption, imbalance | Web services, through the open source Python package [eptr2](https://github.com/Tideseed/eptr2) |
+| EPDK | Licence registers | Published files |
+| ENTSO-E Transparency Platform | Neighbouring markets (planned) | API |
+
+TR Power Lab is independent. It is not affiliated with EPİAŞ, TEİAŞ or EPDK. Figures come from these sources. Any errors in processing are mine.
+
+## Conventions
+
+- **Time:** all timestamps are in Türkiye time (UTC+3). Each hour is labelled by its start, so 14:00 covers 14:00 to 15:00.
+- **Currency:** prices are in TRY per MWh, as published. Comparisons across years or countries also use the EUR and USD prices published by EPİAŞ, because TRY inflation distorts long TRY series.
+- **Averages:** every average states whether it is simple (each hour weighted equally) or volume weighted.
+
+## Definitions
+
+- **PTF (Piyasa Takas Fiyatı):** the day ahead market clearing price.
+- **SMF (Sistem Marjinal Fiyatı):** the system marginal price from the balancing market.
+- **AOF (Ağırlıklı Ortalama Fiyat):** the volume weighted average price in the intraday market.
+
+More definitions will be added as the reports grow.
+
+## Corrections
+
+If you find an error, please open an issue on [GitHub](https://github.com/mervebozkurt35/tr-power-lab/issues). Corrections are noted on the page where they apply.
