@@ -122,6 +122,16 @@ def add_line(fig, x, y, family: str, key: str, name: str | None = None, hover_fm
                                name="direct-label")
 
 
+def add_cap_line(fig, x, y, name: str = "Price cap", hover_fmt: str = ",.0f", unit: str = "") -> None:
+    """Dashed grey line for a price limit. Steps in lira; in EUR or USD it also moves with the exchange rate."""
+    light, dark = SURF["light"]["ink_muted"], SURF["dark"]["ink_muted"]
+    fig.add_trace(go.Scatter(
+        x=x, y=y, name=name, mode="lines", line=dict(width=1.5, color=(dark if MODE == "dark" else light), dash="dash"),
+        hovertemplate=f"%{{y:{hover_fmt}}}{unit}<extra>{name}</extra>",
+        meta={"light": light, "dark": dark, "kind": "line"},
+    ))
+
+
 def add_events(fig, events: pd.DataFrame, series: str, include_draft: bool = False,
                min_gap_days: int = 120) -> None:
     """Dotted vertical marker for each event that relates to this series.

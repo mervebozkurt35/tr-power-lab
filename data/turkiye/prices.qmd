@@ -32,6 +32,11 @@ VOL_FROM = pd.Timestamp("2017-12-01")           # GÖP and bilateral volumes are
 for df in (d, m):
     df.loc[df.index < VOL_FROM, ["gop_mwh", "bilateral_mwh"]] = float("nan")
 last = d.index.max()
+import price_limits as pl
+d["cap"] = pl.cap_on(d.index).to_numpy()      # lira cap in force that day (empty before 1 April 2022)
+# Euro and dollar cap = lira cap divided by the exchange rate implied by that day's PTF in each currency
+d["cap_eur"] = d["cap"] / (d["ptf_mean"] / d["ptf_eur_mean"].where(d["ptf_eur_mean"] > 0))
+d["cap_usd"] = d["cap"] / (d["ptf_mean"] / d["ptf_usd_mean"].where(d["ptf_usd_mean"] > 0))
 fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
 ```
 
@@ -59,27 +64,31 @@ HTML('<div class="tile-grid">' + "".join(
 
 ## Daily, weekly and monthly prices
 
-PTF is the hourly price set in the day-ahead market (GÖP). AOF is the volume-weighted average price of trades in the intraday market (GİP), from July 2015. SMF is the price of the last balancing instruction the system operator used in each hour (DGP). All three are averages of hourly prices in Turkish lira. Use the buttons to change the time step and the range; click a name in the legend to hide or show a line.
+PTF is the hourly price set in the day-ahead market (GÖP). AOF is the volume-weighted average price of trades in the intraday market (GİP), from July 2015. SMF is the price of the last balancing instruction the system operator used in each hour (DGP). All three are averages of hourly prices in Turkish lira. The dashed line is the price cap in force (the average cap in the period for weekly and monthly views); it starts on 1 April 2022, and the [price limits](#price-limits-a-cap-and-a-floor) section below explains it. Use the buttons to change the time step and the range; click a name in the legend to hide or show a line.
 
 ```{python}
 #| label: price-chart
 import plotly.graph_objects as go
 
 cols3 = ["ptf_mean", "smf_mean", "aof_mean"]
-weekly = d[cols3].resample("W-MON", label="left", closed="left").mean()
-monthly = m[cols3]
-views = {"Daily": d[cols3], "Weekly": weekly, "Monthly": monthly}
+cols4 = cols3 + ["cap"]
+weekly = d[cols4].resample("W-MON", label="left", closed="left").mean()
+monthly = d[cols4].resample("MS").mean().reindex(m.index)   # the average cap in force in the month
+monthly[cols3] = m[cols3]
+views = {"Daily": d[cols4], "Weekly": weekly, "Monthly": monthly}
 
 fig = cs.figure(None, "TL/MWh", height=460)
 for i, (name, df) in enumerate(views.items()):
     for key, col in (("ptf", "ptf_mean"), ("smf", "smf_mean"), ("aof", "aof_mean")):
         cs.add_line(fig, df.index, df[col], "prices", key, unit=" TL/MWh", end_label=False)
         fig.data[-1].update(visible=(name == "Weekly"), legendgroup=key, showlegend=(name == "Weekly"))
+    cs.add_cap_line(fig, df.index, df["cap"], unit=" TL/MWh")
+    fig.data[-1].update(visible=(name == "Weekly"), legendgroup="cap", showlegend=(name == "Weekly"))
 
 n = len(fig.data)
 buttons = []
 for i, name in enumerate(views):
-    vis = [j // 3 == i for j in range(n)]
+    vis = [j // 4 == i for j in range(n)]
     buttons.append(dict(label=name, method="update", args=[{"visible": vis, "showlegend": vis}]))
 fig.update_layout(
     updatemenus=[dict(type="buttons", direction="right", buttons=buttons, active=1, x=0, y=1.04,
@@ -102,27 +111,33 @@ cs.show(fig)
 
 ## The long view in euros
 
-Lira prices rose more than twentyfold between 2011 and 2026, mostly because of inflation and the weaker lira, so a long lira series hides real changes. EPİAŞ also publishes every hourly PTF in euros and US dollars, converted at that day's exchange rate. The chart shows weekly averages in either currency. Switch to **Log** to compare changes in percentage terms: on a log scale a doubling looks the same in 2013 and in 2022, so quieter years are no longer flattened by the 2022 gas crisis.
+Lira prices rose more than twentyfold between 2011 and 2026, mostly because of inflation and the weaker lira, so a long lira series hides real changes. EPİAŞ also publishes every hourly PTF in euros and US dollars, converted at that day's exchange rate. The chart shows weekly averages in either currency. The dashed line is the price cap in that currency: the lira cap divided by the exchange rate implied by each day's PTF, so it moves with the exchange rate even when the lira cap is unchanged. It starts on 1 April 2022, when the cap became a fixed amount; before that it followed a formula. Switch to **Log** to compare changes in percentage terms: on a log scale a doubling looks the same in 2013 and in 2022, so quieter years are no longer flattened by the 2022 gas crisis.
 
 ```{python}
 #| label: long-chart
 # Weekly averages of the daily EUR and USD prices; weeks with fewer than 5 days of data are left out.
 wk = d[["ptf_eur_mean", "ptf_usd_mean"]].resample("W-MON", label="left", closed="left")
 wk = wk.mean().where(wk.count() >= 5)
+wkc = d[["cap_eur", "cap_usd"]].resample("W-MON", label="left", closed="left")
+wkc = wkc.mean().where(wkc.count() >= 5)
 cur = {"EUR": ("ptf_eur_mean", "EUR/MWh"), "USD": ("ptf_usd_mean", "USD/MWh")}
+capcol = {"EUR": "cap_eur", "USD": "cap_usd"}
 
 fig2 = cs.figure(None, "Weekly average PTF (EUR/MWh)", height=420)
 for name, (col, unit) in cur.items():
     cs.add_line(fig2, wk.index, wk[col], "prices", "ptf", name=f"PTF in {name}", unit=f" {unit}",
                 hover_fmt=",.1f", end_label=False)
     fig2.data[-1].update(visible=(name == "EUR"), line=dict(width=1.5))
+for name, (col, unit) in cur.items():
+    cs.add_cap_line(fig2, wkc.index, wkc[capcol[name]], name=f"Price cap in {name}", unit=f" {unit}", hover_fmt=",.1f")
+    fig2.data[-1].update(visible=(name == "EUR"))
 fig2.update_layout(
     showlegend=False,
     margin=dict(t=48),
     updatemenus=[
         dict(type="buttons", direction="right", active=0, x=0, y=1.03, xanchor="left", yanchor="bottom",
              buttons=[dict(label=k, method="update",
-                           args=[{"visible": [j == i for j in range(len(cur))]},
+                           args=[{"visible": [(j % len(cur)) == i for j in range(2 * len(cur))]},
                                  {"yaxis.title.text": f"Weekly average PTF ({cur[k][1]})", "yaxis.autorange": True}])
                       for i, k in enumerate(cur)]),
         dict(type="buttons", direction="right", active=0, x=0.2, y=1.03, xanchor="left", yanchor="bottom",
@@ -276,16 +291,12 @@ Offers and prices in the day-ahead market must stay between a minimum and a maxi
 
 ```{python}
 #| label: limits-data
-import price_limits as pl
 import plotly.graph_objects as go
 
 caps = pl.load_caps()
 CAP_FROM = caps["effective_date"].min()
 
 dd_ = d.loc[CAP_FROM:].copy()
-dd_["cap"] = pl.cap_on(dd_.index).to_numpy()
-dd_["fx"] = dd_["ptf_mean"] / dd_["ptf_eur_mean"].where(dd_["ptf_eur_mean"] > 0)
-dd_["cap_eur"] = dd_["cap"] / dd_["fx"]
 dd_["cap_day"] = (dd_["ptf_max"] >= dd_["cap"] - pl.TOLERANCE).astype(float)    # at least one hour at the cap
 
 mm = m.loc[CAP_FROM:].copy()
@@ -299,9 +310,16 @@ cap_now, cap_start = dd_["cap"].iloc[-1], caps["max_tl_mwh"].iloc[0]
 eur_peak_day = dd_["cap_eur"].idxmax()
 y1 = dd_.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
 share_days = y1["cap_day"].mean()
+if HAS_HOURS:
+    m12 = m.iloc[-12:]
+    cap_h, all_h = m12["ptf_cap_hours"].sum(), m12["hours_with_price"].sum()
+    hours_txt = (f" Counted by the hour, PTF was at the cap in **{cap_h / all_h:.1%} of all hours** "
+                 f"({cap_h:,.0f} of {all_h:,.0f}) over the last 12 calendar months, counting the current month so far.")
+else:
+    hours_txt = ""
 Markdown(
     f"In the last 12 months, PTF reached the cap in at least one hour on **{share_days:.0%} of days** "
-    f"({int(y1['cap_day'].sum())} of {len(y1)}). "
+    f"({int(y1['cap_day'].sum())} of {len(y1)}).{hours_txt} "
     f"The cap is now {cap_now:,.0f} TL/MWh, about {dd_['cap_eur'].iloc[-30:].mean():,.0f} EUR/MWh at today's rate. "
     f"At its highest in euros ({eur_peak_day:%b %Y}) it was about {dd_.loc[eur_peak_day, 'cap_eur']:,.0f} EUR/MWh: "
     f"lira cap increases have not kept pace with the lira's fall, so the cap has become tighter in real terms."
@@ -339,13 +357,14 @@ else:
 
 ```{python}
 #| label: cap-level-chart
-dm_ = dd_.resample("W-MON", label="left", closed="left").agg({"cap": "max", "cap_eur": "mean"})
+dm_ = dd_.resample("W-MON", label="left", closed="left").agg({"cap": "max", "cap_eur": "mean", "cap_usd": "mean"})
 figl = cs.figure(None, "Cap in EUR/MWh", height=380)
 cs.add_line(figl, dm_.index, dm_["cap_eur"], "single", "", name="Cap", unit=" EUR/MWh", hover_fmt=",.0f", end_label=False)
 figl.data[-1].update(line_shape="hv")
 figl.update_layout(showlegend=False, margin=dict(t=40))
 cs.mode_buttons(figl, [
     dict(label="EUR/MWh", y=[dm_["cap_eur"]], title="Cap in EUR/MWh", hover=[",.0f"], hover_unit=" EUR/MWh"),
+    dict(label="USD/MWh", y=[dm_["cap_usd"]], title="Cap in USD/MWh", hover=[",.0f"], hover_unit=" USD/MWh"),
     dict(label="TL/MWh", y=[dm_["cap"]], title="Cap in TL/MWh", hover=[",.0f"], hover_unit=" TL/MWh"),
 ])
 figl.update_yaxes(rangemode="tozero")
@@ -375,7 +394,9 @@ cols = {"Cap at year end (TL/MWh)": yr["cap"].last().map(lambda v: f"{v:,.0f}"),
 if HAS_HOURS:
     ch = m.loc[CAP_FROM:, "ptf_cap_hours"].groupby(m.loc[CAP_FROM:].index.year).sum(min_count=1)
     zh = m.loc[CAP_FROM:, "ptf_zero_hours"].groupby(m.loc[CAP_FROM:].index.year).sum(min_count=1)
+    hh = m.loc[CAP_FROM:, "hours_with_price"].groupby(m.loc[CAP_FROM:].index.year).sum(min_count=1)
     cols["Hours at the cap"] = ch.map(lambda v: f"{v:,.0f}")
+    cols["Share of hours"] = (ch / hh).map(lambda v: f"{v:.1%}")
     cols["Hours at zero"] = zh.map(lambda v: f"{v:,.0f}")
 yt = pd.DataFrame(cols).sort_index(ascending=False)
 yt.index = [f"{y} (to {last:%d %b})" if y == last.year else (f"{y} (from 1 Apr)" if y == CAP_FROM.year else str(y)) for y in yt.index]
@@ -384,6 +405,45 @@ Markdown(yt.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * l
 
 Before 1 April 2022 the cap was formula-based, so the fixed-cap table above does not reach back further. The monthly maximum prices of July 2021 to March 2022 rise in steps (617, 636, 674, 718 and then 1,078 to 1,745 TL/MWh) and equal the daily maximum on most days, which fits a cap that was rebuilt each month; we have not verified the formula's start date, so hours at the cap are not counted for that period.
 
+### Hours at the cap, month by month
+
+```{python}
+#| label: limits-monthly-tables
+if HAS_HOURS:
+    mo = m.loc[CAP_FROM:, ["ptf_cap_hours", "hours_with_price"]].copy()
+    partial = mo["hours_with_price"] < mo.index.days_in_month * 24 - 1
+    mo["share"] = mo["ptf_cap_hours"] / mo["hours_with_price"]
+    mo["year"], mo["mon"] = mo.index.year, mo.index.month
+    names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    def grid(value, fmt_, total):
+        g = mo.pivot(index="year", columns="mon", values=value).reindex(columns=range(1, 13))
+        out = g.copy().astype(object)
+        for (r, c), v in g.stack(future_stack=True).items():
+            txt = "–" if pd.isna(v) else fmt_(v)
+            if not pd.isna(v) and partial.get(pd.Timestamp(year=r, month=c, day=1), False):
+                txt += "*"
+            out.loc[r, c] = txt
+        out.columns = names
+        out["Total"] = total.map(lambda v: fmt_(v)).reindex(out.index)
+        out.index.name = "Year"
+        return out.sort_index(ascending=False)
+
+    tot_h = mo.groupby("year")["ptf_cap_hours"].sum()
+    tot_s = mo.groupby("year")["ptf_cap_hours"].sum() / mo.groupby("year")["hours_with_price"].sum()
+    g1 = grid("ptf_cap_hours", lambda v: f"{v:,.0f}", tot_h)
+    g2 = grid("share", lambda v: f"{v:.0%}", tot_s)
+    ca = ["left"] + ["right"] * 13
+    txt_ = ("**Number of hours at the cap**\n\n"
+            + g1.to_markdown(disable_numparse=True, colalign=ca)
+            + "\n\n**Share of the month's hours at the cap**\n\n"
+            + g2.to_markdown(disable_numparse=True, colalign=ca)
+            + "\n\nA star marks a month still in progress. 2022 starts in April, when the cap became a fixed amount, so its yearly figure covers April to December.")
+else:
+    txt_ = "Monthly hour counts appear after the next data refresh."
+Markdown(txt_)
+```
+
 ```{python}
 #| label: limits-downloads
 stamp = f"{last:%Y%m%d}"
@@ -391,6 +451,8 @@ cap_out = caps[["decision_date", "effective_date", "max_tl_mwh", "min_tl_mwh", "
 cap_out["effective_date"] = cap_out["effective_date"].dt.strftime("%Y-%m-%d")
 lim = mm[["cap_days"] + (["cap_hours"] if HAS_HOURS else []) + ["ptf_zero_hours"]].rename(
     columns={"cap_days": "days_with_hour_at_cap", "cap_hours": "hours_at_cap", "ptf_zero_hours": "hours_at_zero"})
+if HAS_HOURS:
+    lim["share_of_hours_at_cap"] = (mm["cap_hours"] / mm["hours_with_price"]).round(4)
 lim.index = lim.index.strftime("%Y-%m")
 HTML(
     cs.download_link(cap_out, f"trpowerlab_ptf_price_caps_{stamp}.csv", "Cap history (CSV)")
