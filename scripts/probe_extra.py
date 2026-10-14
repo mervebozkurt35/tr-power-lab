@@ -43,6 +43,12 @@ CALLS = [
     ("reservoir active fullness", "dams-active-fullness", {}, False),
     ("reservoir active volume", "dams-active-volume", {}, False),
     ("reservoir daily level", "dams-daily-level", {}, False),
+    ("reservoir active fullness with dates", "dams-active-fullness", {"_dates": True}, False),
+    ("reservoir daily volume", "dams-daily-volume", {}, False),
+    ("reservoir water-energy provision", "dams-water-energy-provision", {}, False),
+    ("reservoir info", "dams-info", {}, False),
+    ("YEKDEM capacity period 2026-09", "ren-capacity", {"period": "2026-09-01"}, False),
+    ("YEKDEM capacity period 2026-09 (month only)", "ren-capacity", {"period": "2026-09"}, False),
     ("interconnection direction list", "intl-capacity-demand-direction-list", {}, False),
     ("interconnection line capacity TRGR", "line-capacities", {"intl_direction": "TRGR"}, True),
     ("interconnection line capacity GRTR", "line-capacities", {"intl_direction": "GRTR"}, True),
@@ -71,6 +77,12 @@ def main() -> None:
     ap.add_argument("--end", default=str(default_end))
     ap.add_argument("--only", default="", help="run only calls whose label contains this text")
     args = ap.parse_args()
+    # EPİAŞ refuses ranges longer than one year; a probe only needs a few days
+    s, e = date.fromisoformat(args.start), date.fromisoformat(args.end)
+    if (e - s).days > 14:
+        s = e - timedelta(days=2)
+        print(f"Window shortened to {s} .. {e} (EPİAŞ allows at most 1 year; a probe needs 3 days)")
+    args.start, args.end = str(s), str(e)
 
     OUT.mkdir(parents=True, exist_ok=True)
     eptr = connect()
@@ -91,6 +103,8 @@ def main() -> None:
         say(f"{label}   [{key} {extra}]")
         try:
             kwargs = dict(extra)
+            if kwargs.pop("_dates", False):
+                needs_dates = True
             if needs_dates:
                 kwargs.update(start_date=args.start, end_date=args.end)
             df = eptr.call(key, **kwargs)
