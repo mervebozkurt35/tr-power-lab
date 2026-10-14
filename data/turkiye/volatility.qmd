@@ -32,6 +32,13 @@ for df in (d, m):
     fx = df["ptf_mean"] / df["ptf_eur_mean"].where(df["ptf_eur_mean"] > 0)
     for col in ("smf_ptf_gap", "gap_when_short", "gap_when_long", "aof_ptf_gap", "smf_ptf_absgap"):
         df[col + "_eur"] = df[col] / fx
+# Gaps as a share of the period's average PTF. Ratios of averages, not averages of hourly ratios:
+# hourly percentages explode when PTF is near zero.
+for df in (d, m):
+    for col in ("smf_ptf_gap", "gap_when_short", "gap_when_long", "aof_ptf_gap"):
+        df[col + "_pct"] = df[col] / df["ptf_mean"].where(df["ptf_mean"] > 0) * 100
+m["ptf_spread_pct"] = m["ptf_spread"] / m["ptf_mean"] * 100
+m["ptf_std_pct"] = m["ptf_std"] / m["ptf_mean"] * 100
 full = m["hours_with_price"] >= m.index.days_in_month * 24 - 1
 mf = m[full]
 ```
@@ -57,7 +64,7 @@ HTML('<div class="tile-grid">' + "".join(
 
 ## Daily price spread
 
-The daily spread is the gap between the most and the least expensive hour of the day-ahead price. It is a first estimate of what a battery could earn from buying in the cheapest hour and selling in the most expensive one, before efficiency losses, fees and the limits of the battery. The second line, the standard deviation, measures how far hourly prices move around the day's average. Both are monthly averages of daily values, in euros so years can be compared.
+The daily spread is the gap between the most and the least expensive hour of the day-ahead price. It is a first estimate of what a battery could earn from buying in the cheapest hour and selling in the most expensive one, before efficiency losses, fees and the limits of the battery. The second line, the standard deviation, measures how far hourly prices move around the day's average. Both are monthly averages of daily values. Euros (the default) make years comparable; lira values rise with inflation. The percentage view divides by the month's average PTF, so it shows spread relative to the price level: a spread of 100% means the gap between the cheapest and the dearest hour equals the average price.
 
 ```{python}
 #| label: spread-chart
@@ -71,13 +78,19 @@ fig.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="yea
                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
                                              dict(step="all", label="All")],
                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.mode_buttons(fig, [
+    dict(label="EUR/MWh", y=[mf["ptf_spread_eur"], mf["ptf_std_eur"]], title="EUR/MWh", hover=[",.1f"] * 2, hover_unit=" EUR/MWh"),
+    dict(label="TL/MWh", y=[mf["ptf_spread"], mf["ptf_std"]], title="TL/MWh", hover=[",.0f"] * 2, hover_unit=" TL/MWh"),
+    dict(label="% of average PTF", y=[mf["ptf_spread_pct"], mf["ptf_std_pct"]], title="% of the month's average PTF",
+         suffix="%", hover=[",.0f"] * 2, hover_unit="%"),
+])
 cs.style_controls(fig)
 cs.show(fig)
 ```
 
 ## The cost of being out of balance
 
-When the system is short, the operator buys extra energy in the balancing market and SMF usually rises above PTF. When it is long, SMF usually falls below PTF. The gap is what a market participant risks by being out of balance in that direction: imbalance prices are built from PTF and SMF. Bars show the monthly average gap in euros, split by system direction.
+When the system is short, the operator buys extra energy in the balancing market and SMF usually rises above PTF. When it is long, SMF usually falls below PTF. The gap is what a market participant risks by being out of balance in that direction: imbalance prices are built from PTF and SMF. Bars show the monthly average gap, split by system direction, in euros, lira or as a percentage of the month's average PTF. The percentage is the best way to compare years: a gap of 300 TL/MWh meant much more in 2016 than it does today.
 
 ```{python}
 #| label: gap-chart
@@ -88,12 +101,32 @@ cs.add_bar(fig2, g.index, g["gap_when_short_eur"], "balancing", "up", step=1,
 cs.add_bar(fig2, g.index, g["gap_when_long_eur"], "balancing", "down", step=1,
            name="System long: SMF below PTF", hover_fmt=",.1f", unit=" EUR/MWh")
 fig2.update_layout(barmode="relative", bargap=0.15, margin=dict(t=40))
+cs.mode_buttons(fig2, [
+    dict(label="EUR/MWh", y=[g["gap_when_short_eur"], g["gap_when_long_eur"]], title="SMF − PTF, EUR/MWh", hover=[",.1f"] * 2, hover_unit=" EUR/MWh"),
+    dict(label="TL/MWh", y=[g["gap_when_short"], g["gap_when_long"]], title="SMF − PTF, TL/MWh", hover=[",.0f"] * 2, hover_unit=" TL/MWh"),
+    dict(label="% of average PTF", y=[g["gap_when_short_pct"], g["gap_when_long_pct"]], title="SMF − PTF, % of the month's average PTF",
+         suffix="%", hover=[",.0f"] * 2, hover_unit="%"),
+])
 fig2.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
                                               dict(count=5, label="5Y", step="year", stepmode="backward"),
                                               dict(step="all", label="All")],
                                      x=1, xanchor="right", y=1.03, yanchor="bottom"))
 cs.style_controls(fig2)
 cs.show(fig2)
+```
+
+```{python}
+#| label: gap-note
+pk = g["gap_when_short_pct"].idxmax()
+prev = g["gap_when_short"].loc[pk - pd.DateOffset(years=1): pk - pd.DateOffset(months=1)].median()
+txt = (f"The highest short-side gap in percentage terms is {pk:%B %Y}: SMF was {g.loc[pk, 'gap_when_short']:,.0f} TL/MWh "
+       f"above PTF while the month's average PTF was only {g.loc[pk, 'ptf_mean']:,.0f} TL/MWh, so the gap equals "
+       f"{g.loc[pk, 'gap_when_short_pct']:.0f}% of the average price. ")
+if g.loc[pk, "gap_when_short"] > 1.5 * prev:
+    txt += (f"The lira gap itself was also well above the {prev:,.0f} TL/MWh median of the previous twelve months: "
+            f"when day-ahead prices were low, balancing prices did not fall with them. ")
+txt += "Percentages exaggerate gaps in months with a low average PTF, so read them next to the lira and euro views."
+Markdown(txt)
 ```
 
 ## Intraday versus day-ahead
@@ -105,7 +138,14 @@ The intraday market (GİP) trades the same hours after the day-ahead auction. It
 fig3 = cs.figure(None, "AOF − PTF, EUR/MWh", height=380)
 a = mf.loc["2015-07-01":]
 cs.add_bar(fig3, a.index, a["aof_ptf_gap_eur"], "markets", "gip", name="AOF − PTF", hover_fmt=",.2f", unit=" EUR/MWh")
-fig3.update_layout(showlegend=False, bargap=0.15, margin=dict(t=16))
+fig3.update_layout(showlegend=False, bargap=0.15, margin=dict(t=40))
+cs.mode_buttons(fig3, [
+    dict(label="EUR/MWh", y=[a["aof_ptf_gap_eur"]], title="AOF − PTF, EUR/MWh", hover=[",.2f"], hover_unit=" EUR/MWh"),
+    dict(label="TL/MWh", y=[a["aof_ptf_gap"]], title="AOF − PTF, TL/MWh", hover=[",.1f"], hover_unit=" TL/MWh"),
+    dict(label="% of average PTF", y=[a["aof_ptf_gap_pct"]], title="AOF − PTF, % of the month's average PTF",
+         suffix="%", hover=[",.2f"], hover_unit="%"),
+])
+cs.style_controls(fig3)
 cs.show(fig3)
 ```
 
@@ -132,6 +172,9 @@ tab = pd.DataFrame({
     "SMF − PTF when short": yy["gap_when_short_eur"].mean().map(lambda v: fmt(v, 1)),
     "SMF − PTF when long": yy["gap_when_long_eur"].mean().map(lambda v: fmt(v, 1)),
     "AOF − PTF": yy["aof_ptf_gap_eur"].mean().map(lambda v: fmt(v, 2)),
+    "SMF − PTF when short (% of PTF)": (yy["gap_when_short"].mean() / yy["ptf_mean"].mean() * 100).map(lambda v: fmt(v, 1) + "%"),
+    "SMF − PTF when long (% of PTF)": (yy["gap_when_long"].mean() / yy["ptf_mean"].mean() * 100).map(lambda v: fmt(v, 1) + "%"),
+    "AOF − PTF (% of PTF)": (yy["aof_ptf_gap"].mean() / yy["ptf_mean"].mean() * 100).map(lambda v: fmt(v, 1) + "%"),
     "Zero-price hours": yy["ptf_zero_hours"].sum().map(lambda v: fmt(v)),
 }).loc[2012:].sort_index(ascending=False)
 tab = tab.apply(lambda c: c.str.replace("-", "−", regex=False))
@@ -139,7 +182,7 @@ tab.index = [f"{y} (to {last:%d %b})" if y == last.year else str(y) for y in tab
 Markdown(tab.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(tab.columns)))
 ```
 
-All gaps are in EUR/MWh, converted from lira at the exchange rate implied by EPİAŞ's own lira and euro prices for each day. Yearly figures are averages of daily values; zero-price hours are totals.
+Gaps in euros are converted from lira at the exchange rate implied by EPİAŞ's own lira and euro prices for each day; percentages divide the average gap by the average PTF of the same period. Yearly figures are averages of daily values; zero-price hours are totals.
 
 ### Download the data
 
@@ -149,7 +192,11 @@ cols = {"ptf_spread": "ptf_daily_spread_try_mwh", "ptf_spread_eur": "ptf_daily_s
         "ptf_std": "ptf_hourly_std_try_mwh", "ptf_std_eur": "ptf_hourly_std_eur_mwh",
         "smf_ptf_gap": "smf_minus_ptf_try_mwh", "gap_when_short": "smf_minus_ptf_when_short_try_mwh",
         "gap_when_long": "smf_minus_ptf_when_long_try_mwh", "aof_ptf_gap": "aof_minus_ptf_try_mwh",
-        "ptf_zero_hours": "hours_ptf_zero", "deficit_share": "share_hours_system_short"}
+        "ptf_zero_hours": "hours_ptf_zero", "deficit_share": "share_hours_system_short",
+        "smf_ptf_gap_eur": "smf_minus_ptf_eur_mwh", "gap_when_short_eur": "smf_minus_ptf_when_short_eur_mwh",
+        "gap_when_long_eur": "smf_minus_ptf_when_long_eur_mwh", "aof_ptf_gap_eur": "aof_minus_ptf_eur_mwh",
+        "smf_ptf_gap_pct": "smf_minus_ptf_pct_of_ptf", "gap_when_short_pct": "smf_minus_ptf_when_short_pct_of_ptf",
+        "gap_when_long_pct": "smf_minus_ptf_when_long_pct_of_ptf", "aof_ptf_gap_pct": "aof_minus_ptf_pct_of_ptf"}
 dm = m[list(cols)].rename(columns=cols).round(4)
 dm.index = dm.index.strftime("%Y-%m")
 dd = d[list(cols)].rename(columns=cols).round(4)

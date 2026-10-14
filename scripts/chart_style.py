@@ -157,6 +157,28 @@ def style_controls(fig) -> None:
                                         font=dict(color=s["ink"], size=12)))
 
 
+def mode_buttons(fig, modes: list[dict], x: float = 0, y: float = 1.03) -> None:
+    """Buttons that switch every trace between units (for example EUR/MWh, TL/MWh, % of PTF).
+
+    modes: [{"label": "EUR/MWh", "y": [series per trace], "title": "axis title", "suffix": "",
+             "hover": [".1f" per trace]}, ...]. Trace order must match the order they were added in.
+    The first mode is drawn by the caller; the y-axis refits whenever a button is pressed.
+    """
+    def clean(series):
+        return [None if pd.isna(v) else round(float(v), 4) for v in series]
+
+    buttons = []
+    for md in modes:
+        unit = md.get("hover_unit", "")
+        hover = [f"%{{y:{h}}}{unit}<extra>{t.name}</extra>" for h, t in zip(md["hover"], fig.data)]
+        buttons.append(dict(label=md["label"], method="update",
+                            args=[{"y": [clean(v) for v in md["y"]], "hovertemplate": hover},
+                                  {"yaxis.title.text": md["title"], "yaxis.ticksuffix": md.get("suffix", ""),
+                                   "yaxis.autorange": True}]))
+    fig.update_layout(updatemenus=[dict(type="buttons", direction="right", active=0, x=x, y=y,
+                                        xanchor="left", yanchor="bottom", buttons=buttons)])
+
+
 CONFIG = {"displaylogo": False, "responsive": True, "typesetMath": False, "displayModeBar": False,
           "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d"]}
 

@@ -10,6 +10,7 @@ Series (each starts on its own first available date)
   bilateral    bilateral contract (İA) quantity                    call: bi-long
   idm          intraday (GİP) matched quantity per delivery hour   call: idm-qty
   wap          intraday (GİP) weighted average price (AOF)         call: wap
+  bilateral_euas  EÜAŞ to authorised retailers, monthly totals     call: bi-euas
 
 What it writes
   data/raw/<series>/<YYYY-MM>.csv     hourly data as EPİAŞ returns it (local only, never committed)
@@ -35,6 +36,9 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import price_limits  # noqa: E402  (price cap table, data/price_caps.csv)
 
 TZ = "Europe/Istanbul"  # UTC+3 all year since 2016
 ROOT = Path(__file__).resolve().parents[1]
@@ -334,6 +338,51 @@ SERIES = {
 OPTIONAL = {"dam", "bilateral", "idm", "wap"}   # outputs are built without them if they are not downloaded yet
 
 
+# ---------------------------------------------------------------- monthly series
+
+def download_euas(eptr, start: date, end: date) -> None:
+    """EÜAŞ to authorised retailers (GTŞ) bilateral contracts, published as monthly totals.
+
+    One file per year. Past years are kept once downloaded; the current and previous year are refreshed.
+    """
+    folder = RAW / "bilateral_euas"
+    folder.mkdir(parents=True, exist_ok=True)
+    for year in range(max(start.year, 2011), end.year + 1):
+        path = folder / f"{year}.csv"
+        if path.exists() and year < end.year - 1:
+            continue
+        a, b = date(year, 1, 1), min(date(year, 12, 31), end)
+        try:
+            df = call(eptr, "bi-euas", a.isoformat(), b.isoformat(), tries=2)
+        except RuntimeError as exc:
+            if path.exists():
+                notes.append(f"bilateral_euas: {year} could not be refreshed ({exc}).")
+            continue
+        if df.empty:
+            continue
+        df.to_csv(path, index=False)
+        print(f"  bilateral_euas {year}  {len(df):5d} rows")
+
+
+def load_euas() -> pd.Series | None:
+    """Monthly EÜAŞ-GTŞ bilateral quantity (MWh), indexed by 'YYYY-MM'."""
+    files = sorted((RAW / "bilateral_euas").glob("*.csv"))
+    if not files:
+        return None
+    df = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
+    date_col = next((c for c in df.columns if c.lower() in ("date", "period", "donem", "month")), None)
+    nums = df.select_dtypes("number").columns
+    qty_col = next((c for c in df.columns if c.lower() in ("quantity", "amount", "miktar", "value")), None) \
+        or (nums[0] if len(nums) else None)
+    notes.append(f"bilateral_euas: raw columns {list(df.columns)}; using date = '{date_col}', quantity = '{qty_col}'.")
+    if date_col is None or qty_col is None:
+        notes.append("bilateral_euas: could not identify the columns; left out.")
+        return None
+    t = pd.to_datetime(df[date_col], utc=True, format="ISO8601").dt.tz_convert(TZ)
+    out = df.assign(month=t.dt.strftime("%Y-%m")).drop_duplicates(subset=[date_col], keep="last")
+    return out.groupby("month")[qty_col].sum(min_count=1).rename("bilateral_euas_mwh")
+
+
 # ---------------------------------------------------------------- cleaning
 
 def load(series: str, start: date, end: date) -> pd.DataFrame:
@@ -455,6 +504,9 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame, e
     hourly["gap_when_short"] = hourly["smf_ptf_gap"].where(hourly["system_direction"] == DEFICIT)
     hourly["gap_when_long"] = hourly["smf_ptf_gap"].where(hourly["system_direction"] == SURPLUS)
     hourly["ptf_zero"] = (hourly["ptf"] == 0).astype(float).where(hourly["ptf"].notna())
+    # Hours at the price cap (within 1 TL/MWh) and the cap itself; only from 1 April 2022, see price_limits.py
+    hourly["ptf_at_cap"] = price_limits.at_cap(hourly["ptf"])
+    hourly["ptf_cap"] = price_limits.cap_on(hourly.index)
     hourly["aof_ptf_gap"] = hourly["aof"] - hourly["ptf"]
     hourly["deficit"] = (hourly["system_direction"] == DEFICIT).astype(float)
     hourly["surplus"] = (hourly["system_direction"] == SURPLUS).astype(float)
@@ -508,6 +560,8 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame, e
         out["gap_when_long"] = g["gap_when_long"].mean()
         out["aof_ptf_gap"] = g["aof_ptf_gap"].mean()
         out["ptf_zero_hours"] = g["ptf_zero"].sum(min_count=1)
+        out["ptf_cap_hours"] = g["ptf_at_cap"].sum(min_count=1)
+        out["ptf_cap_tl_mwh"] = g["ptf_cap"].max()
         out.index = out.index.date if freq == "D" else out.index.strftime("%Y-%m")
         return out
 
@@ -522,13 +576,20 @@ def build_outputs(prices: pd.DataFrame, cons: pd.DataFrame, gen: pd.DataFrame, e
     by_month = by_month.resample("MS").mean()                         # average of daily values
     by_month.index = by_month.index.strftime("%Y-%m")
     monthly = monthly.drop(columns=["ptf_std"]).join(by_month)
+    euas = load_euas()
+    if euas is not None:
+        monthly = monthly.join(euas)
+        monthly["euas_share_of_bilateral"] = monthly["bilateral_euas_mwh"] / monthly["bilateral_mwh"]
+        s = monthly["bilateral_euas_mwh"]
+        if s.notna().any():
+            coverage.append(f"| bilateral_euas (monthly) | {s.first_valid_index()} | {s.last_valid_index()} |")
     daily, monthly = daily.round(4), monthly.round(4)
     daily.index.name, monthly.index.name = "date", "month"
     daily.to_csv(OUT / "core_daily.csv")
     monthly.to_csv(OUT / "core_monthly.csv")
 
     cutoff = hourly.index.max() - pd.Timedelta(days=RECENT_DAYS)
-    helpers = ["ptf_x_cons", "deficit", "surplus", "smf_ptf_gap", "gap_when_short", "gap_when_long", "ptf_zero", "aof_ptf_gap"]
+    helpers = ["ptf_x_cons", "deficit", "surplus", "smf_ptf_gap", "gap_when_short", "gap_when_long", "ptf_zero", "aof_ptf_gap", "ptf_at_cap", "ptf_cap"]
     recent = hourly[hourly.index > cutoff].drop(columns=helpers)
     recent.index = recent.index.strftime("%Y-%m-%dT%H:%M%z")
     recent.round(2).to_csv(OUT / "core_hourly_recent.csv")
@@ -589,7 +650,9 @@ def main() -> None:
 
     if not a.skip_download:
         print("Downloading from EPİAŞ …")
-        download(connect(), start, end, a.refresh_months)
+        eptr = connect()
+        download(eptr, start, end, a.refresh_months)
+        download_euas(eptr, start, end)
 
     print("Cleaning …")
     ptf = clean_ptf(load("ptf", start, end))

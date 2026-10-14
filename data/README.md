@@ -26,3 +26,8 @@ One row per event. Charts draw a marker for every row with `status = verified` w
 | `series` | Which series it relates to, separated by `;` (for example `ptf;smf`) |
 | `source` | Link to the decision, law or news item; `observed in data` until confirmed |
 | `status` | `draft` until the date and source are confirmed, then `verified` |
+
+
+## price_caps.csv
+
+PTF price cap by period (decision date, first delivery day, limit, status, source). `verified` means a dated press report agrees with the data; `draft` means the change is seen in the data but the decision is not confirmed. The same changes are also listed as `regulation` rows in `events.csv`, which are generated from this file: edit `price_caps.csv` first, then update `events.csv`.

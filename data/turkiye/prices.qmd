@@ -264,9 +264,143 @@ HTML(
 )
 ```
 
+## Price limits: a cap and a floor
+
+Offers and prices in the day-ahead market must stay between a minimum and a maximum set by the regulator, EPDK. The minimum has always been zero. The maximum has changed many times; the balancing market (SMF) works under the same limits. Both are published in the Official Gazette.
+
+**Why a cap?** The decisions we read state the limit but not the reasoning, so this part is our reading of press reports and of the market's structure. A cap limits what one hour can cost buyers when supply is tight, when a few large plants set the price, or when gas costs jump with the exchange rate. Until spring 2022 the cap followed a formula: three times the trailing twelve-month weighted average PTF, and at most 2,000 TL/MWh, so it rose as prices rose. Since 1 April 2022 it is a fixed amount in lira that the board changes by decision.
+
+**Why a floor at zero?** Bids below zero are not accepted, so the price cannot go negative. Most European day-ahead markets allow negative prices, down to −500 EUR/MWh in the coupled EU market. In Türkiye the decisions simply state a minimum of 0. When must-run and renewable output exceeds demand, the price sits at zero, so zero-price hours show that there is a surplus but not how large it is.
+
+**What the limits do to the data.** At the cap or the floor the price stops carrying information about scarcity or surplus: it is cut off, not observed. Averages, spreads and volatility measures are therefore likely to be smaller than they would be without limits, and a cap that is hit as often as this one (see below) shapes the whole price distribution.
+
+```{python}
+#| label: limits-data
+import price_limits as pl
+import plotly.graph_objects as go
+
+caps = pl.load_caps()
+CAP_FROM = caps["effective_date"].min()
+
+dd_ = d.loc[CAP_FROM:].copy()
+dd_["cap"] = pl.cap_on(dd_.index).to_numpy()
+dd_["fx"] = dd_["ptf_mean"] / dd_["ptf_eur_mean"].where(dd_["ptf_eur_mean"] > 0)
+dd_["cap_eur"] = dd_["cap"] / dd_["fx"]
+dd_["cap_day"] = (dd_["ptf_max"] >= dd_["cap"] - pl.TOLERANCE).astype(float)    # at least one hour at the cap
+
+mm = m.loc[CAP_FROM:].copy()
+mm = mm[mm["hours_with_price"] >= mm.index.days_in_month * 24 - 1]                # full months only
+mm["cap_days"] = dd_["cap_day"].resample("MS").sum().reindex(mm.index)
+HAS_HOURS = "ptf_cap_hours" in m.columns and m["ptf_cap_hours"].notna().any()
+if HAS_HOURS:
+    mm["cap_hours"] = m["ptf_cap_hours"].reindex(mm.index)
+
+cap_now, cap_start = dd_["cap"].iloc[-1], caps["max_tl_mwh"].iloc[0]
+eur_peak_day = dd_["cap_eur"].idxmax()
+y1 = dd_.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
+share_days = y1["cap_day"].mean()
+Markdown(
+    f"In the last 12 months, PTF reached the cap in at least one hour on **{share_days:.0%} of days** "
+    f"({int(y1['cap_day'].sum())} of {len(y1)}). "
+    f"The cap is now {cap_now:,.0f} TL/MWh, about {dd_['cap_eur'].iloc[-30:].mean():,.0f} EUR/MWh at today's rate. "
+    f"At its highest in euros ({eur_peak_day:%b %Y}) it was about {dd_.loc[eur_peak_day, 'cap_eur']:,.0f} EUR/MWh: "
+    f"lira cap increases have not kept pace with the lira's fall, so the cap has become tighter in real terms."
+)
+```
+
+### How often prices sit on the limits
+
+```{python}
+#| label: limits-chart
+if HAS_HOURS:
+    figc = cs.figure(None, "Hours per month", height=400)
+    cs.add_bar(figc, mm.index, mm["cap_hours"], "balancing", "up", step=1, name="Hours at the cap",
+               hover_fmt=",.0f", unit=" hours")
+    cs.add_bar(figc, mm.index, mm["ptf_zero_hours"], "balancing", "down", step=1, name="Hours at zero",
+               hover_fmt=",.0f", unit=" hours")
+    figc.update_layout(barmode="group", bargap=0.2, margin=dict(t=16))
+else:
+    figc = cs.figure(None, "Days per month", height=400)
+    cs.add_bar(figc, mm.index, mm["cap_days"], "balancing", "up", step=1,
+               name="Days with at least one hour at the cap", hover_fmt=",.0f", unit=" days")
+    figc.update_layout(bargap=0.2, margin=dict(t=16))
+cs.show(figc)
+```
+
+```{python}
+#| output: asis
+if HAS_HOURS:
+    print("At the cap means within 1 TL/MWh of the limit in force on that day: offers are often placed a few kuruş below it. Zero means exactly 0.")
+else:
+    print("Hour counts are added with the next data refresh. Until then the chart shows days with at least one hour at the cap (the daily maximum within 1 TL/MWh of the limit). Zero-price hours are on the [volatility page](volatility.qmd).")
+```
+
+### The cap over time
+
+```{python}
+#| label: cap-level-chart
+dm_ = dd_.resample("W-MON", label="left", closed="left").agg({"cap": "max", "cap_eur": "mean"})
+figl = cs.figure(None, "Cap in EUR/MWh", height=380)
+cs.add_line(figl, dm_.index, dm_["cap_eur"], "single", "", name="Cap", unit=" EUR/MWh", hover_fmt=",.0f", end_label=False)
+figl.data[-1].update(line_shape="hv")
+figl.update_layout(showlegend=False, margin=dict(t=40))
+cs.mode_buttons(figl, [
+    dict(label="EUR/MWh", y=[dm_["cap_eur"]], title="Cap in EUR/MWh", hover=[",.0f"], hover_unit=" EUR/MWh"),
+    dict(label="TL/MWh", y=[dm_["cap"]], title="Cap in TL/MWh", hover=[",.0f"], hover_unit=" TL/MWh"),
+])
+figl.update_yaxes(rangemode="tozero")
+cs.style_controls(figl)
+cs.show(figl)
+```
+
+```{python}
+#| label: cap-table
+rows = caps.copy()
+rows["Effective"] = rows["effective_date"].dt.strftime("%d %b %Y")
+rows["Cap (TL/MWh)"] = rows["max_tl_mwh"].map(lambda v: f"{v:,.0f}")
+rows["Status"] = rows["status"].map({"verified": "Verified", "draft": "Seen in data, decision not confirmed"})
+rows["Source"] = rows["source"].apply(lambda u: f"[link]({u})" if isinstance(u, str) and u.startswith("http") else "–")
+tab = rows[["Effective", "Cap (TL/MWh)", "Status", "Source"]].iloc[::-1].reset_index(drop=True)
+Markdown(tab.to_markdown(index=False, disable_numparse=True, colalign=["left", "right", "left", "left"]))
+```
+
+*Verified* means a dated press report of the decision (or the Official Gazette notice it quotes) agrees with the data. *Seen in data* means the limit shows up as a price ceiling in the data on that date, but we have not yet confirmed the decision or its date; we mark those until we do. Effective dates are the first delivery day at the new limit and can differ from the decision date by a few days.
+
+```{python}
+#| label: limits-yearly
+yr = dd_.groupby(dd_.index.year)
+cols = {"Cap at year end (TL/MWh)": yr["cap"].last().map(lambda v: f"{v:,.0f}"),
+        "Days with a cap hour": yr["cap_day"].sum().map(lambda v: f"{v:,.0f}"),
+        "Share of days": yr["cap_day"].mean().map(lambda v: f"{v:.0%}")}
+if HAS_HOURS:
+    ch = m.loc[CAP_FROM:, "ptf_cap_hours"].groupby(m.loc[CAP_FROM:].index.year).sum(min_count=1)
+    zh = m.loc[CAP_FROM:, "ptf_zero_hours"].groupby(m.loc[CAP_FROM:].index.year).sum(min_count=1)
+    cols["Hours at the cap"] = ch.map(lambda v: f"{v:,.0f}")
+    cols["Hours at zero"] = zh.map(lambda v: f"{v:,.0f}")
+yt = pd.DataFrame(cols).sort_index(ascending=False)
+yt.index = [f"{y} (to {last:%d %b})" if y == last.year else (f"{y} (from 1 Apr)" if y == CAP_FROM.year else str(y)) for y in yt.index]
+Markdown(yt.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(yt.columns)))
+```
+
+Before 1 April 2022 the cap was formula-based, so the fixed-cap table above does not reach back further. The monthly maximum prices of July 2021 to March 2022 rise in steps (617, 636, 674, 718 and then 1,078 to 1,745 TL/MWh) and equal the daily maximum on most days, which fits a cap that was rebuilt each month; we have not verified the formula's start date, so hours at the cap are not counted for that period.
+
+```{python}
+#| label: limits-downloads
+stamp = f"{last:%Y%m%d}"
+cap_out = caps[["decision_date", "effective_date", "max_tl_mwh", "min_tl_mwh", "status", "source", "note"]].copy()
+cap_out["effective_date"] = cap_out["effective_date"].dt.strftime("%Y-%m-%d")
+lim = mm[["cap_days"] + (["cap_hours"] if HAS_HOURS else []) + ["ptf_zero_hours"]].rename(
+    columns={"cap_days": "days_with_hour_at_cap", "cap_hours": "hours_at_cap", "ptf_zero_hours": "hours_at_zero"})
+lim.index = lim.index.strftime("%Y-%m")
+HTML(
+    cs.download_link(cap_out, f"trpowerlab_ptf_price_caps_{stamp}.csv", "Cap history (CSV)")
+    + cs.download_link(lim.rename_axis("month").reset_index(), f"trpowerlab_ptf_limit_hours_monthly_{stamp}.csv", "Monthly hours at the limits (CSV)")
+)
+```
+
 ## Notes
 
 - **Source:** EPİAŞ Şeffaflık Platformu, through the open source [eptr2](https://github.com/Tideseed/eptr2) package. Data to `{python} f"{last:%d %B %Y}"`.
-- **Price caps:** PTF and SMF are limited by a maximum settlement price set by EPDK. The cap changed several times since 2022; monthly maximum prices sit on the cap in many months.
+- **Price caps:** PTF and SMF are limited to a range set by EPDK. The cap changed many times since April 2022 and PTF reaches it on many days; see the section above.
 - **Gaps:** a few hours on old daylight saving days are missing in the source data and are left out, not filled.
 - See the [methodology](../../methodology.qmd) for definitions and the data quality notes.
