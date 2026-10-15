@@ -32,6 +32,10 @@ website:
             href: data/turkiye/generation.qmd
           - text: "Volatility"
             href: data/turkiye/volatility.qmd
+          - text: "Natural gas"
+            href: data/turkiye/gas.qmd
+          - text: "Balancing instructions"
+            href: data/turkiye/balancing.qmd
           - text: "Neighbouring markets"
             href: data/neighbouring-markets/index.qmd
       - text: "Reports"

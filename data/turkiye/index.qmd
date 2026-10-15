@@ -213,6 +213,16 @@ Generation by source since 2014 and consumption since 2016.
 ### [Volatility](volatility.qmd)
 Daily spreads, balancing costs and intraday volatility. Coming in November.
 :::
+
+::: {.tile}
+### [Natural gas](gas.qmd)
+The spot gas price since 2018, in lira, euros and dollars, next to power prices and gas-fired generation.
+:::
+
+::: {.tile}
+### [Balancing instructions](balancing.qmd)
+Up and down instructions since 2011, and how much of them were ordered to relieve grid constraints.
+:::
 :::
 
 Source: EPİAŞ Şeffaflık Platformu. See the [methodology](../../methodology.qmd) for definitions and data quality notes.

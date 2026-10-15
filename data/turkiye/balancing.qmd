@@ -1,0 +1,208 @@
+---
+title: "Balancing instructions"
+subtitle: "How much energy the system operator ordered up and down, and why"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+import plotly.graph_objects as go
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+d = pd.read_csv(ROOT / "data/processed/balancing_daily.csv", parse_dates=["date"]).set_index("date")
+m = pd.read_csv(ROOT / "data/processed/balancing_monthly.csv", parse_dates=["month"]).set_index("month")
+S = cs.SURF[cs.MODE]
+fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
+last = d.index.max()
+
+# Instructed volumes by label (GWh). Down-regulation is drawn below zero.
+for df in (d, m):
+    df["up_instr"] = df[["up_code0_mwh", "up_code1_mwh", "up_code2_mwh"]].sum(axis=1)
+    df["down_instr"] = df[["down_code0_mwh", "down_code1_mwh", "down_code2_mwh"]].sum(axis=1)
+    df["up_constraint_share"] = df["up_code1_mwh"] / df["up_instr"].where(df["up_instr"] > 0) * 100
+    df["down_constraint_share"] = df["down_code1_mwh"] / df["down_instr"].where(df["down_instr"] > 0) * 100
+full = m["hours"] >= m.index.days_in_month * 24 - 1
+mf = m[full]
+```
+
+```{python}
+#| label: tiles
+w12 = d.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
+share12 = w12["up_code1_mwh"].sum() / w12["up_instr"].sum() * 100
+recent = mf.loc[mf.index >= mf.index.max() - pd.DateOffset(months=23)]
+pk = recent["up_constraint_share"].idxmax()
+prev_year = d.loc[str(last.year - 1)]
+prev_share = prev_year["up_code1_mwh"].sum() / prev_year["up_instr"].sum() * 100
+ytd = d.loc[f"{last.year}-01-01":]
+ytd_ly = d.loc[f"{last.year - 1}-01-01": last - pd.DateOffset(years=1)]
+tiles = [
+    ("Up-regulation, last 12 months", f"{w12['up_instr'].sum() / 1000:,.0f} GWh",
+     f"{share12:.0f}% of it to relieve grid constraints"),
+    ("Peak constraint share, last 2 years", f"{recent.loc[pk, 'up_constraint_share']:.0f}%",
+     f"of up-regulation in {pk:%B %Y} · {prev_share:.0f}% over {last.year - 1} as a whole"),
+    (f"Net delivered in {last.year} so far", f"{ytd['net_mwh'].sum() / 1000:+,.0f} GWh",
+     f"{ytd_ly['net_mwh'].sum() / 1000:+,.0f} GWh in the same period of {last.year - 1} · positive = more up than down"),
+]
+HTML('<div class="tile-grid">' + "".join(
+    f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
+```
+
+## What the instructions are
+
+After the day-ahead and intraday markets close, the system operator (TEİAŞ) keeps supply and demand in balance in real time. When the system is short of energy it orders plants to produce more, an up-regulation instruction (YAL). When the system has too much it orders plants to produce less, a down-regulation instruction (YAT). Every instruction carries a label. According to the Balancing and Settlement Regulation, label 0 is for balancing energy, label 1 for relieving constraints in the transmission grid, and label 2 for ancillary services such as frequency control. We use the label published with each instruction; we have yet to confirm with EPİAŞ that the published code is this label.
+
+The grid-constraint label matters for cost. A plant ordered up for a constraint is paid the price it offered, whatever the day-ahead price was. The share of instructions carrying label 1 therefore shows how much of balancing is about where electricity is produced, not about how much. Volumes below are the energy instructed; the bottom of the page shows how much was delivered.
+
+## Instructions by label
+
+Bars above zero are up-regulation, bars below zero down-regulation, split by label. Warm colours are up, cool colours are down; darker means label 0.
+
+```{python}
+#| label: volume-chart
+g = mf.loc["2012-01-01":]
+fig = cs.figure(None, "GWh per month", height=440)
+series = [("up_code0_mwh", "up", 0, "Up, balancing (label 0)", 1),
+          ("up_code1_mwh", "up", 1, "Up, grid constraint (label 1)", 1),
+          ("up_code2_mwh", "up", 2, "Up, ancillary (label 2)", 1),
+          ("down_code0_mwh", "down", 0, "Down, balancing (label 0)", -1),
+          ("down_code1_mwh", "down", 1, "Down, grid constraint (label 1)", -1),
+          ("down_code2_mwh", "down", 2, "Down, ancillary (label 2)", -1)]
+for col, key, step, name, sign in series:
+    cs.add_bar(fig, g.index, sign * g[col] / 1000, "balancing", key, step=step, name=name,
+               hover_fmt=",.0f", unit=" GWh")
+fig.update_layout(barmode="relative", bargap=0.15, margin=dict(t=40))
+fig.update_xaxes(range=[last - pd.DateOffset(years=5), last],
+                 rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                             dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                             dict(step="all", label="All")],
+                                    x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig)
+cs.show(fig)
+```
+
+```{python}
+#| label: volume-note
+a = mf.loc["2026-04-01":"2026-06-01"] if "2026-06-01" in mf.index else mf.tail(3)
+yr_ago = mf.loc[a.index[0] - pd.DateOffset(years=1): a.index[-1] - pd.DateOffset(years=1)]
+txt = (f"Between {a.index[0]:%B} and {a.index[-1]:%B} {a.index[-1].year}, the operator ordered "
+       f"{a['up_instr'].sum() / 1000:,.0f} GWh up, {a['up_code1_mwh'].sum() / a['up_instr'].sum() * 100:.0f}% of it "
+       f"with the grid-constraint label, against {yr_ago['up_instr'].sum() / 1000:,.0f} GWh and "
+       f"{yr_ago['up_code1_mwh'].sum() / yr_ago['up_instr'].sum() * 100:.0f}% a year earlier. "
+       f"Down-regulation also rose: {a['down_instr'].sum() / 1000:,.0f} GWh against {yr_ago['down_instr'].sum() / 1000:,.0f} GWh.")
+Markdown(txt)
+```
+
+## Share of instructions for grid constraints
+
+```{python}
+#| label: share-chart
+s = mf.loc["2012-01-01":]
+fig2 = cs.figure(None, "% of instructed volume", height=360)
+cs.add_line(fig2, s.index, s["up_constraint_share"], "balancing", "up", name="Share of up-regulation with label 1",
+            unit="%", hover_fmt=",.0f", end_label=False)
+cs.add_line(fig2, s.index, s["down_constraint_share"], "balancing", "down", name="Share of down-regulation with label 1",
+            unit="%", hover_fmt=",.0f", end_label=False)
+fig2.update_layout(margin=dict(t=40))
+fig2.update_yaxes(ticksuffix="%", range=[0, 100])
+fig2.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig2)
+cs.show(fig2)
+```
+
+```{python}
+#| label: share-note
+yr = d.loc["2020":str(last.year - 1)].groupby(d.loc["2020":str(last.year - 1)].index.year)
+sh = yr["up_code1_mwh"].sum() / yr["up_instr"].sum() * 100
+Markdown(f"From {sh.index.min()} to {sh.index.max()} the grid-constraint label covered between {sh.min():.0f}% and {sh.max():.0f}% "
+         "of up-regulation in a year. The spring of 2026 is far outside that range: almost all up-regulation carried the label.")
+```
+
+ The [congestion cost](#notes) that EPİAŞ reports rose in the same months.
+
+## Net volume actually delivered
+
+Delivered volume is what plants actually supplied after the instruction. Up-regulation delivered plus down-regulation delivered is the net: positive when more energy was added to the system than taken out, negative when the system was long on balance.
+
+```{python}
+#| label: net-chart
+n = mf.loc["2012-01-01":]
+fig3 = cs.figure(None, "GWh per month", height=360)
+cs.add_bar(fig3, n.index, n["net_mwh"].where(n["net_mwh"] >= 0) / 1000, "balancing", "up", step=1,
+           name="More up than down", hover_fmt=",.0f", unit=" GWh")
+cs.add_bar(fig3, n.index, n["net_mwh"].where(n["net_mwh"] < 0) / 1000, "balancing", "down", step=1,
+           name="More down than up", hover_fmt=",.0f", unit=" GWh")
+fig3.update_layout(barmode="relative", bargap=0.15, margin=dict(t=40))
+fig3.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig3)
+cs.show(fig3)
+```
+
+## Yearly summary
+
+```{python}
+#| label: yearly
+yy = d.groupby(d.index.year)
+tab = pd.DataFrame({
+    "Up instructed (GWh)": yy["up_instr"].sum() / 1000,
+    "of which grid constraint": yy["up_code1_mwh"].sum() / yy["up_instr"].sum() * 100,
+    "Down instructed (GWh)": yy["down_instr"].sum() / 1000,
+    "of which grid constraint ": yy["down_code1_mwh"].sum() / yy["down_instr"].sum() * 100,
+    "Delivered up (GWh)": yy["up_delivered_mwh"].sum() / 1000,
+    "Delivered down (GWh)": -yy["down_delivered_mwh"].sum() / 1000,
+    "Net delivered (GWh)": yy["net_mwh"].sum() / 1000,
+}).loc[2012:].sort_index(ascending=False)
+out = pd.DataFrame({c: tab[c].map(lambda v: fmt(v, 0) + ("%" if "constraint" in c else "")) for c in tab.columns})
+out.index = [f"{y} (to {last:%d %b})" if y == last.year else str(y) for y in out.index]
+out = out.apply(lambda c: c.str.replace("-", "−", regex=False))
+Markdown(out.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(out.columns)))
+```
+
+Instructed volumes are the energy ordered; delivered volumes are what plants supplied, so the two differ. Yearly figures are sums of hourly values. The shares are the part of instructed volume that carries label 1.
+
+### Download the data
+
+```{python}
+#| label: downloads
+cols = {"up_code0_mwh": "up_instructed_label0_balancing_mwh", "up_code1_mwh": "up_instructed_label1_constraint_mwh",
+        "up_code2_mwh": "up_instructed_label2_ancillary_mwh", "down_code0_mwh": "down_instructed_label0_balancing_mwh",
+        "down_code1_mwh": "down_instructed_label1_constraint_mwh", "down_code2_mwh": "down_instructed_label2_ancillary_mwh",
+        "up_delivered_mwh": "up_delivered_mwh", "down_delivered_mwh": "down_delivered_mwh", "net_mwh": "net_delivered_mwh",
+        "up_constraint_share": "up_constraint_share_pct", "down_constraint_share": "down_constraint_share_pct",
+        "hours": "hours_in_period"}
+dm = m[list(cols)].rename(columns=cols).round(2)
+dm.index = dm.index.strftime("%Y-%m")
+dd = d[list(cols)].rename(columns=cols).round(2)
+dd.index = dd.index.strftime("%Y-%m-%d")
+stamp = f"{last:%Y%m%d}"
+HTML(
+    cs.download_link(dm.rename_axis("month").reset_index(), f"trpowerlab_balancing_monthly_{stamp}.csv", "Monthly (CSV)")
+    + cs.download_link(dd.rename_axis("date").reset_index(), f"trpowerlab_balancing_daily_{stamp}.csv", "Daily (CSV)")
+)
+```
+
+Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*; the figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the underlying data belong to EPİAŞ.
+
+## Notes {#notes}
+
+- **Source:** EPİAŞ Şeffaflık Platformu balancing power market instructions (up and down regulation), summed from hourly values, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`. The current month is left out of the monthly charts until it is complete.
+- **Labels:** 0 = balancing, 1 = relief of system (grid) constraints, 2 = ancillary services, as defined in the Balancing and Settlement Regulation. Label 2 is zero in the data from 2019. The published code and the regulation's label are assumed to be the same; this is still to be confirmed with EPİAŞ.
+- **Congestion cost:** EPİAŞ also publishes a congestion cost by province. It rose from about 0.3 billion TL in 2025 to about 16 billion TL in 2026, with its peak in April to June, the months in which label-1 instructions dominate. We do not show it on this page yet because its exact definition and reference price are still to be confirmed.
+- **Instructed and delivered:** the volumes by label are instruction volumes; delivered volumes are published separately and without a label split.
+- See the [methodology](../../methodology.qmd) for definitions.

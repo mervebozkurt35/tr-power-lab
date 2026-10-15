@@ -1,0 +1,296 @@
+---
+title: "Natural gas"
+subtitle: "The spot gas price, its link to power prices, and the balancing gas price"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+g = pd.read_csv(ROOT / "data/processed/gas_daily.csv", parse_dates=["date"]).set_index("date")
+gm_file = pd.read_csv(ROOT / "data/processed/gas_monthly.csv", parse_dates=["month"]).set_index("month")
+core_d = pd.read_csv(ROOT / "data/processed/core_daily.csv", parse_dates=["date"]).set_index("date")
+core_m = pd.read_csv(ROOT / "data/processed/core_monthly.csv", parse_dates=["month"]).set_index("month")
+S = cs.SURF[cs.MODE]
+fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
+
+MMBTU_PER_MWH = 3.412142
+EFFICIENCY = 0.50   # illustrative efficiency of a gas-fired power plant (fuel cost only)
+
+# One-day spikes and dips (flagged in the data) are left out of the charts and averages on this page.
+g["usd_mmbtu"] = g["sgp_wavg_usd_mwh"] / MMBTU_PER_MWH
+UNITS = {"eur": "sgp_wavg_eur_mwh", "usd": "usd_mmbtu", "tl_mwh": "sgp_wavg_tl_mwh", "tl_sm3": "sgp_wavg"}
+clean = g.copy()
+clean.loc[clean["sgp_outlier"] == 1, list(UNITS.values())] = np.nan
+last = clean["sgp_wavg"].last_valid_index()
+clean = clean.loc[:last]
+
+weekly = clean[list(UNITS.values())].resample("W-MON", label="left", closed="left").mean()
+monthly = clean[list(UNITS.values())].resample("MS").mean()
+# Only complete months in the long view; the current month is shown in the daily and weekly views.
+monthly = monthly[monthly.index + pd.offsets.MonthEnd(0) <= last]
+
+# Power side, on the same footing.
+pm = core_m[["ptf_eur_mean", "gas_mwh", "total_mwh", "hours_with_price"]].copy()
+pm["gas_share"] = pm["gas_mwh"] / pm["total_mwh"] * 100
+both = pd.DataFrame({"gas_eur": monthly["sgp_wavg_eur_mwh"], "ptf_eur": pm["ptf_eur_mean"],
+                     "gas_share": pm["gas_share"]}).dropna(subset=["gas_eur", "ptf_eur"])
+both["gas_fuel_cost"] = both["gas_eur"] / EFFICIENCY
+both["margin"] = both["ptf_eur"] - both["gas_fuel_cost"]
+```
+
+```{python}
+#| label: tiles
+w30 = clean.loc[last - pd.Timedelta(days=29): last]
+w30_ly = clean.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1)]
+c30 = core_d.loc[last - pd.Timedelta(days=29): last]
+c30_ly = core_d.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1)]
+share = lambda c: c["gas_mwh"].sum() / c["total_mwh"].sum() * 100
+ptf30 = c30["ptf_eur_mean"].mean()
+cost30 = w30["sgp_wavg_eur_mwh"].mean() / EFFICIENCY
+chg = (w30["sgp_wavg_eur_mwh"].mean() / w30_ly["sgp_wavg_eur_mwh"].mean() - 1) * 100
+tiles = [
+    ("Spot gas price, last 30 days", f"{w30['sgp_wavg_eur_mwh'].mean():.1f} EUR/MWh",
+     f"{w30['sgp_wavg'].mean():,.0f} TL per 1,000 Sm³ · {chg:+.0f}% on a year earlier"),
+    ("Gas-fired share of generation", f"{share(c30):.0f}%",
+     f"last 30 days · {share(c30_ly):.0f}% a year earlier"),
+    ("Gas fuel cost of one MWh of power", f"{cost30:.0f} EUR/MWh",
+     f"at {EFFICIENCY:.0%} efficiency · average PTF was {ptf30:.0f} EUR/MWh"),
+]
+HTML('<div class="tile-grid">' + "".join(
+    f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
+```
+
+## The spot gas price
+
+The spot gas market (organised by EPİAŞ) trades gas for delivery on the day it is traded and the day after. The reference price, GRF, is the volume-weighted average of its day-ahead and intraday matches. Prices are published in lira per 1,000 standard cubic metres (Sm³). We also show them per megawatt-hour of gas, in euros and in US dollars per MMBtu, the unit of international gas prices. The conversion to energy uses a gross calorific value of 9,155 kcal/Sm³ (1,000 Sm³ = 10.65 MWh), and euro and dollar values use the exchange rate implied by EPİAŞ's own power prices for each day, so they differ slightly from EPİAŞ's own conversions. Use the buttons to change the time step, the unit and the range.
+
+```{python}
+#| label: gas-chart
+views = {"Daily": clean, "Weekly": weekly, "Monthly": monthly}
+unit_defs = {
+    "EUR/MWh": ("eur", ",.1f", " EUR/MWh"),
+    "USD/MMBtu": ("usd", ",.2f", " USD/MMBtu"),
+    "TL/MWh": ("tl_mwh", ",.0f", " TL/MWh"),
+    "TL per 1,000 Sm³": ("tl_sm3", ",.0f", " TL"),
+}
+fig = cs.figure(None, "EUR/MWh", height=440)
+for name, df in views.items():
+    cs.add_line(fig, df.index, df[UNITS["eur"]], "generation", "gas", name="Spot gas price (GRF)",
+                unit=" EUR/MWh", hover_fmt=",.1f", end_label=False)
+    fig.data[-1].update(visible=(name == "Weekly"), showlegend=False)
+
+def clean_list(s):
+    return [None if pd.isna(v) else round(float(v), 4) for v in s]
+
+time_buttons = []
+for i, name in enumerate(views):
+    vis = [j == i for j in range(3)]
+    time_buttons.append(dict(label=name, method="update", args=[{"visible": vis}]))
+unit_buttons = []
+for label_, (key, hf, hu) in unit_defs.items():
+    unit_buttons.append(dict(
+        label=label_, method="update",
+        args=[{"y": [clean_list(df[UNITS[key]]) for df in views.values()],
+               "hovertemplate": [f"%{{y:{hf}}}{hu}<extra>Spot gas price (GRF)</extra>"] * 3},
+              {"yaxis.title.text": label_, "yaxis.autorange": True}]))
+fig.update_layout(
+    updatemenus=[
+        dict(type="buttons", direction="right", buttons=time_buttons, active=1, x=0, y=1.04, xanchor="left",
+             yanchor="bottom", showactive=True, pad=dict(r=6, t=0), font=dict(size=12)),
+        dict(type="buttons", direction="right", buttons=unit_buttons, active=0, x=0.30, y=1.04, xanchor="left",
+             yanchor="bottom", showactive=True, pad=dict(r=6, t=0), font=dict(size=12)),
+    ],
+    margin=dict(t=40),
+)
+fig.update_xaxes(
+    rangeselector=dict(buttons=[dict(count=1, label="1Y", step="year", stepmode="backward"),
+                                dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                dict(step="all", label="All")],
+                       x=1, xanchor="right", y=1.04, yanchor="bottom", font=dict(size=12)),
+)
+cs.style_controls(fig)
+cs.show(fig)
+```
+
+```{python}
+#| label: gas-note
+y = clean["sgp_wavg_eur_mwh"].resample("YS").mean()
+pk = monthly["sgp_wavg_eur_mwh"].idxmax()
+l12 = clean.loc[last - pd.DateOffset(years=1): last]
+rng = l12["sgp_wavg"].max() - l12["sgp_wavg"].min()
+txt = (f"The spot price peaked in {pk:%B %Y} at {monthly.loc[pk, 'sgp_wavg_eur_mwh']:.0f} EUR/MWh "
+       f"({monthly.loc[pk, 'sgp_wavg']:,.0f} TL per 1,000 Sm³), {monthly.loc[pk, 'sgp_wavg_eur_mwh'] / y.loc['2021-01-01']:.1f} times the 2021 average. "
+       f"Over the last twelve months the daily price ranged between {l12['sgp_wavg'].min():,.0f} and "
+       f"{l12['sgp_wavg'].max():,.0f} TL per 1,000 Sm³. Day-to-day moves are small, which is what a price "
+       "anchored to a regulated tariff looks like; we have not yet checked how closely it follows the BOTAŞ tariff. "
+       "In euros the price also changes with the exchange rate.")
+Markdown(txt)
+```
+
+## Gas and power prices
+
+Gas-fired plants often set the price of electricity, so the price of gas is a first guide to the price of power. The dashed line is the fuel cost of producing one megawatt-hour of electricity from spot gas at 50% efficiency: the gas price divided by 0.5. It leaves out carbon costs, operating costs and plant start-up costs, and a plant's real efficiency is usually lower than 50%, so read it as a floor on a plant's costs, not as a profit measure. When PTF is below the line, a gas plant with average efficiency would lose money on fuel alone in that month.
+
+```{python}
+#| label: gas-power-chart
+b = both.loc["2018-08-01":]
+fig2 = cs.figure(None, "EUR/MWh", height=420)
+cs.add_line(fig2, b.index, b["ptf_eur"], "prices", "ptf", name="PTF (day-ahead power price)",
+            unit=" EUR/MWh", hover_fmt=",.1f", end_label=False)
+cs.add_line(fig2, b.index, b["gas_fuel_cost"], "generation", "gas", name="Gas fuel cost of power (50% efficiency)",
+            unit=" EUR/MWh", hover_fmt=",.1f", dash="dash", end_label=False)
+fig2.update_layout(margin=dict(t=40))
+fig2.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig2)
+cs.show(fig2)
+```
+
+```{python}
+#| label: gas-power-note
+recent = b.loc[b.index >= b.index.max() - pd.DateOffset(months=11)]
+below = (recent["margin"] < 0).sum()
+mn = b["margin"].idxmin()
+txt = (f"In the last twelve complete months PTF was below the gas fuel cost line in {below} of {len(recent)} months. "
+       f"The widest gap was in {mn:%B %Y}: PTF averaged {b.loc[mn, 'ptf_eur']:.0f} EUR/MWh against a fuel cost of "
+       f"{b.loc[mn, 'gas_fuel_cost']:.0f} EUR/MWh. Prices are monthly averages, so individual hours differ a great deal: "
+       "in a month with many zero-price hours the average PTF can sit below the line even though gas plants ran in the "
+       "evening hours when prices were high.")
+Markdown(txt)
+```
+
+## Gas-fired generation
+
+The share of Türkiye's electricity generated from natural gas. It falls when hydro, wind and solar output is high, and it rises in dry years and in summer peaks.
+
+```{python}
+#| label: share-chart
+s_ = pm.loc["2014-01-01":]
+s_ = s_[s_["hours_with_price"] >= s_.index.days_in_month * 24 - 1]
+fig3 = cs.figure(None, "% of generation", height=360)
+cs.add_line(fig3, s_.index, s_["gas_share"], "generation", "gas", name="Gas-fired share of generation",
+            unit="%", hover_fmt=",.1f", end_label=False)
+fig3.update_layout(showlegend=False, margin=dict(t=16))
+fig3.update_yaxes(ticksuffix="%", rangemode="tozero")
+fig3.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                              dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig3)
+cs.show(fig3)
+```
+
+## Trading volume
+
+The spot gas market handles a small part of Türkiye's gas, most of which is bought under contracts. The chart shows how much gas was matched in the spot market each month, in millions of standard cubic metres.
+
+```{python}
+#| label: volume-chart
+vol = g["sgp_matched_qty"].resample("MS").sum() / 1000   # thousand Sm3 per day -> million Sm3 per month
+vol = vol[(vol.index + pd.offsets.MonthEnd(0) <= g.index.max()) & (vol > 0)]
+fig4 = cs.figure(None, "Million Sm³ per month", height=340)
+cs.add_bar(fig4, vol.index, vol, "single", "", name="Gas matched in the spot market", hover_fmt=",.1f", unit=" million Sm³")
+fig4.update_layout(showlegend=False, bargap=0.15, margin=dict(t=16))
+fig4.update_xaxes(rangeselector=dict(buttons=[dict(count=1, label="1Y", step="year", stepmode="backward"),
+                                              dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                              dict(step="all", label="All")],
+                                     x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig4)
+cs.show(fig4)
+```
+
+## The balancing gas price
+
+Gas shippers who are out of balance with the gas system buy or sell the difference at the balancing gas price (BGP). In the data the BGP purchase price is a fixed percentage above the spot reference price and the sale price a fixed percentage below it: 3% until 2022 and 5% from 2023. That looks like a rule written into the market design, not a price found by trading; this is still to be confirmed with EPİAŞ. The practical meaning is that being out of balance in the gas system costs a constant share of the gas price.
+
+```{python}
+#| label: bgp-table
+gg = g.copy()
+gg["year"] = gg.index.year
+t = gg.groupby("year").agg(buy=("bgp_buy_premium_pct", "median"), sell=("bgp_sell_discount_pct", "median"))
+t = t.dropna(how="all")
+t.columns = ["Purchase price above spot (median, %)", "Sale price below spot (median, %)"]
+t = t.map(lambda v: "–" if pd.isna(v) else f"{v:.1f}%")
+t.index = [f"{y} (to {g.index.max():%d %b})" if y == g.index.max().year else str(y) for y in t.index]
+Markdown(t.sort_index(ascending=False).to_markdown(disable_numparse=True, colalign=["left", "right", "right"]))
+```
+
+## Yearly summary
+
+```{python}
+#| label: yearly
+yy = pd.DataFrame({
+    "Spot gas (EUR/MWh)": clean["sgp_wavg_eur_mwh"].groupby(clean.index.year).mean(),
+    "Spot gas (TL per 1,000 Sm³)": clean["sgp_wavg"].groupby(clean.index.year).mean(),
+    "PTF (EUR/MWh)": core_d["ptf_eur_mean"].groupby(core_d.index.year).mean(),
+    "Gas-fired share": core_d["gas_mwh"].groupby(core_d.index.year).sum() / core_d["total_mwh"].groupby(core_d.index.year).sum() * 100,
+    "Spot volume (million Sm³)": (g["sgp_matched_qty"].groupby(g.index.year).sum() / 1000),
+}).loc[2018:].sort_index(ascending=False)
+yy_fmt = pd.DataFrame({
+    "Spot gas (EUR/MWh)": yy["Spot gas (EUR/MWh)"].map(lambda v: fmt(v, 1)),
+    "Spot gas (TL per 1,000 Sm³)": yy["Spot gas (TL per 1,000 Sm³)"].map(lambda v: fmt(v)),
+    "PTF (EUR/MWh)": yy["PTF (EUR/MWh)"].map(lambda v: fmt(v, 1)),
+    "Gas-fired share": yy["Gas-fired share"].map(lambda v: fmt(v, 1) + "%"),
+    "Spot volume (million Sm³)": yy["Spot volume (million Sm³)"].map(lambda v: fmt(v, 0)),
+})
+yy_fmt.index = [f"{y} (to {last:%d %b})" if y == last.year else str(y) for y in yy_fmt.index]
+yy_fmt.loc[yy_fmt.index[-1], ["Spot gas (EUR/MWh)", "Spot gas (TL per 1,000 Sm³)", "Spot volume (million Sm³)"]] = \
+    [fmt(clean.loc["2018-07-26":"2018-12-31", "sgp_wavg_eur_mwh"].mean(), 1) + " (from 26 Jul)",
+     fmt(clean.loc["2018-07-26":"2018-12-31", "sgp_wavg"].mean()) + " (from 26 Jul)",
+     fmt(g.loc["2018-07-26":"2018-12-31", "sgp_matched_qty"].sum() / 1000, 0) + " (from 26 Jul)"]
+Markdown(yy_fmt.apply(lambda c: c.str.replace("-", "−", regex=False)).to_markdown(
+    disable_numparse=True, colalign=["left"] + ["right"] * len(yy_fmt.columns)))
+```
+
+Yearly figures are averages of daily values; spot volume is a total. The spot gas market starts on 26 July 2018, so 2018 is a partial year.
+
+### Download the data
+
+```{python}
+#| label: downloads
+cols_d = {"sgp_wavg": "spot_gas_ref_price_try_per_1000sm3", "sgp_wavg_tl_mwh": "spot_gas_try_mwh",
+          "sgp_wavg_eur_mwh": "spot_gas_eur_mwh", "sgp_wavg_usd_mwh": "spot_gas_usd_mwh",
+          "sgp_day_ahead": "spot_gas_day_ahead_try_per_1000sm3", "sgp_intraday": "spot_gas_intraday_try_per_1000sm3",
+          "sgp_matched_qty": "spot_gas_matched_thousand_sm3", "sgp_outlier": "flag_isolated_spike_or_dip",
+          "bgp_buy": "balancing_gas_purchase_try_per_1000sm3", "bgp_sell": "balancing_gas_sale_try_per_1000sm3",
+          "bgp_buy_premium_pct": "bgp_purchase_above_spot_pct", "bgp_sell_discount_pct": "bgp_sale_below_spot_pct"}
+dd = g[list(cols_d)].rename(columns=cols_d).round(4)
+dd.index = dd.index.strftime("%Y-%m-%d")
+mm = pd.DataFrame({"spot_gas_eur_mwh": monthly["sgp_wavg_eur_mwh"], "spot_gas_try_per_1000sm3": monthly["sgp_wavg"],
+                   "spot_gas_usd_mmbtu": monthly["usd_mmbtu"], "spot_gas_try_mwh": monthly["sgp_wavg_tl_mwh"],
+                   "ptf_eur_mwh": pm["ptf_eur_mean"], "gas_fired_share_pct": pm["gas_share"]}).dropna(
+                   subset=["spot_gas_eur_mwh"]).round(4)
+mm.index = mm.index.strftime("%Y-%m")
+stamp = f"{last:%Y%m%d}"
+HTML(
+    cs.download_link(mm.rename_axis("month").reset_index(), f"trpowerlab_gas_monthly_{stamp}.csv", "Monthly (CSV)")
+    + cs.download_link(dd.rename_axis("date").reset_index(), f"trpowerlab_gas_daily_{stamp}.csv", "Daily (CSV)")
+)
+```
+
+Monthly values on this page leave out the flagged one-day spikes and dips; the daily file keeps every day with a flag. Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*; the figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the underlying data belong to EPİAŞ.
+
+## Notes
+
+- **Source:** EPİAŞ Şeffaflık Platformu natural gas spot market reference price (GRF), balancing gas price (BGP) and spot trade volumes, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`. The lira price per 1,000 Sm³ matches the figure EPİAŞ shows on its platform.
+- **Spikes and dips:** a day whose price differs from both neighbours by more than 25% while the neighbours agree within 15% is flagged as an isolated spike or dip. There are `{python} int(g["sgp_outlier"].sum())` such days (`{python} ", ".join(f"{d:%d %b %Y}" for d in g.index[g["sgp_outlier"] == 1])`). They are left out of the charts and averages here and kept, with a flag, in the downloads.
+- **Revisions:** the day-after price is filled in a day later, so the newest days can change.
+- **Not shown yet:** the gas system imbalance and the physical entry and exit volumes; we are still confirming their units. The BOTAŞ tariff and the TTF hub price, the natural comparison for the spot price, are also still to be added.
+- See the [methodology](../../methodology.qmd) for definitions.
