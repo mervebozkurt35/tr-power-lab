@@ -43,9 +43,11 @@ Written to `data/processed/`:
 | `balancing_daily.csv`, `balancing_monthly.csv` | Upward and downward balancing instructions by instruction code, MWh |
 | `wind_daily.csv` | Monitored wind farms: generation, forecast, forecast error, share of real-time wind |
 | `load_plan_daily.csv` | TEİAŞ load plan against real-time consumption |
-| `line_events.csv` | Interconnection line outages and maintenance |
+| `line_events.csv`, `line_capacity_daily.csv` | Interconnection line outages and maintenance; line capacities by direction |
+| `ul_gen_daily.csv`, `ul_gen_monthly.csv` | YEKDEM unlicensed generation by source (only unlicensed plants inside YEKDEM; source labels look unreliable) |
+| `congestion_monthly.csv`, `congestion_province_monthly.csv` | Congestion (redispatch) cost by province at SMP and PTF prices, up and down regulation |
 | `ren_capacity_monthly.csv` | YEKDEM installed capacity by source, licensed and unlicensed |
-| `reservoirs_daily.csv`, `reservoirs_info.csv` | Reservoir snapshots, one row per dam and day |
+| `reservoirs_daily.csv`, `reservoirs_info.csv`, `reservoirs_national_daily.csv`, `reservoirs_basin_daily.csv` | Reservoir snapshots, one row per dam and day, dam details with min and max volume, and national and basin fullness |
 | `quality_report_extra.md` | Ranges, gaps and checks from the last run |
 
 **Reservoir history cannot be backfilled.** EPİAŞ returns only the latest day, so `reservoirs_daily.csv` is the only copy of the history and starts on the first day the script ran. Commit it, and run the script every day (until the automation does) so no day is lost.
