@@ -472,6 +472,9 @@ def build_gas(report: list) -> None:
         d["bgp_buy_premium_pct"] = (d["bgp_buy"] / d["sgp_wavg"] - 1) * 100
         d["bgp_sell_discount_pct"] = (1 - d["bgp_sell"] / d["sgp_wavg"]) * 100
     if "sgp_wavg" in d:
+        # an isolated spike or dip: the neighbouring days agree with each other but the day is more than 25% away from them
+        prev, nxt = d["sgp_wavg"].shift(1), d["sgp_wavg"].shift(-1)
+        d["sgp_outlier"] = (((prev / nxt - 1).abs() < 0.15) & ((d["sgp_wavg"] / prev - 1).abs() > 0.25)).astype(int)
         d["sgp_wavg_tl_mwh"] = d["sgp_wavg"] / MWH_PER_1000_SM3
     fx = fx_rates()
     if fx is not None:
@@ -512,6 +515,18 @@ def build_gas(report: list) -> None:
         big = d.index[jump > 0.5]
         report.append(f"- Day-on-day moves above 50% in the spot price: {len(big)}"
                       + (f" (first: {', '.join(str(x.date()) for x in big[:5])})." if len(big) else "."))
+        out = d.index[d["sgp_outlier"] == 1]
+        report.append(f"- Isolated one-day spikes or dips in the spot price (flagged `sgp_outlier = 1`, left in the data): {len(out)}"
+                      + (": " + ", ".join(f"{x.date()} ({d.loc[x, 'sgp_wavg']:,.0f})" for x in out[:8]) + "." if len(out) else "."))
+        miss = d.index[d["sgp_wavg"].isna() & d["sgp_day_ahead"].notna()]
+        if len(miss):
+            report.append(f"- Days with a day-ahead price but no weighted average yet (published a day later): "
+                          f"{', '.join(str(x.date()) for x in miss[-3:])}.")
+    if "bgp_buy_premium_pct" in d:
+        pr = d["bgp_buy_premium_pct"].round(1).groupby(d.index.year).median()
+        report.append("- Balancing purchase price above the spot price, median % by year: "
+                      + ", ".join(f"{y}: {v:.1f}" for y, v in pr.items()) + ". A constant percentage means the "
+                      "balancing price follows a formula around the reference price rather than a market outcome.")
     if "bgp_buy" in d and "bgp_sell" in d:
         inv = int((d["bgp_buy"] < d["bgp_sell"]).sum())
         report.append(f"- Days where the balancing purchase price is below the sale price (unexpected): {inv}.")
@@ -586,40 +601,66 @@ def build_wind(report: list) -> None:
         return
     q = pd.DataFrame({"generation": col(w, "generation"), "forecast": col(w, "forecast")}).sort_index()
     q["error"] = q["forecast"] - q["generation"]
+    t = pd.Series(q.index.tz_convert(TZ), index=q.index)
     day = q.index.tz_convert(TZ).tz_localize(None).normalize()
+    # the sampling step is not fixed: 10 minutes (144 rows a day) until May 2026, then fewer rows a day.
+    # Energy therefore uses mean MW x 24 h, never a fixed step, and each day gets a coverage figure.
+    step = (t.diff().dt.total_seconds() / 60).groupby(day).median()
     g = q.groupby(day)
     daily = pd.DataFrame({
         "wind_gen_mw": g["generation"].mean(), "wind_forecast_mw": g["forecast"].mean(),
-        "wind_gen_mwh": g["generation"].sum() * 0.25, "wind_forecast_mwh": g["forecast"].sum() * 0.25,
         "wind_mae_mw": g["error"].apply(lambda s: s.abs().mean()), "wind_bias_mw": g["error"].mean(),
-        "quarters": g.size()})
+        "samples": g.size(), "step_min": step})
+    daily["gen_samples"] = g["generation"].count()
+    daily["fc_samples"] = g["forecast"].count()
+    daily["gen_coverage"] = daily["gen_samples"] * daily["step_min"] / 1440
+    daily["fc_coverage"] = daily["fc_samples"] * daily["step_min"] / 1440
+    daily["complete"] = (daily["gen_coverage"] >= 0.9) & (daily["fc_coverage"] >= 0.9)
+    daily["wind_gen_mwh"] = (daily["wind_gen_mw"] * 24).where(daily["gen_coverage"] >= 0.9)
+    daily["wind_forecast_mwh"] = (daily["wind_forecast_mw"] * 24).where(daily["fc_coverage"] >= 0.9)
     daily["wind_mae_pct_of_gen"] = daily["wind_mae_mw"] / daily["wind_gen_mw"] * 100
     daily.index.name = "date"
     core = OUT / "core_daily.csv"
-    cover = None
     if core.exists():
         c = pd.read_csv(core, parse_dates=["date"]).set_index("date")
         if "wind_mwh" in c:
             daily["rt_gen_wind_mwh"] = c["wind_mwh"].reindex(daily.index)
             daily["monitored_share_of_rt_wind"] = daily["wind_gen_mwh"] / daily["rt_gen_wind_mwh"]
-            cover = daily["monitored_share_of_rt_wind"].dropna()
     daily.round(3).to_csv(OUT / "wind_daily.csv")
 
     first, last = daily.index.min().date(), daily.index.max().date()
-    short = daily[daily["quarters"] < 96]
+    inc = daily[~daily["complete"]]
+    steps = daily.groupby(daily.index.year)["step_min"].agg(lambda x: x.value_counts().index[0])
     report.append(f"## Wind generation and forecast (wind-forecast)\n\n- Range: {first} to {last}, {len(daily)} days, "
-                  f"{len(q):,} quarter-hours.\n"
-                  f"- Days with fewer than 96 quarter-hours: {len(short)} ({spans([x.date() for x in short.index])}).\n"
+                  f"{len(q):,} rows.\n"
+                  f"- Most common time step by year (minutes): " + ", ".join(f"{y}: {m:g}" for y, m in steps.items()) + ".\n"
+                  f"- Rows per day: {daily['samples'].value_counts().head(4).to_dict()} (rows: number of days).\n"
+                  f"- Days where generation or forecast covers less than 90% of the day: {len(inc)} ({spans([x.date() for x in inc.index])}). "
+                  "Energy, forecast error and the share of real-time wind are only meaningful on the other days.\n"
                   f"- Missing forecast values: {int(q['forecast'].isna().sum())}; missing generation values: "
                   f"{int(q['generation'].isna().sum())}.")
     extra = [c for c in ("quarter1", "quarter2", "quarter3", "quarter4") if c in w]
     if extra:
         nz = {c: int((num(w[c]) != 0).sum()) for c in extra}
-        report.append(f"- Columns `quarter1`..`quarter4` (prediction bands, meaning unconfirmed): non-zero rows {nz}.")
-    if cover is not None and len(cover):
-        report.append(f"- Share of real-time wind generation (rt-gen) covered by the monitored farms: "
-                      f"median {cover.median():.0%}, min {cover.min():.0%}, max {cover.max():.0%}. "
-                      "The monitored fleet is not all of Türkiye's wind, so use it for forecast error, not totals.")
+        report.append(f"- Columns `quarter1`..`quarter4` (probably forecast quantile bands, meaning unconfirmed): non-zero rows {nz}.")
+    if "monitored_share_of_rt_wind" in daily:
+        full = daily[daily["complete"]]["monitored_share_of_rt_wind"].dropna()
+        if len(full):
+            by_year = full.groupby(full.index.year).median()
+            report.append(f"- Wind generation in this call divided by real-time wind generation (rt-gen), complete days only: "
+                          f"median {full.median():.0%}, min {full.min():.0%}, max {full.max():.0%}; by year "
+                          + ", ".join(f"{y}: {v:.0%}" for y, v in by_year.items())
+                          + (". Above 100% means this call covers plants that rt-gen does not, so check the definition before "
+                             "using it as a total." if full.median() > 1 else
+                             ". Below 100%: the call may cover only part of the wind fleet, so use it for forecast error, not totals. "
+                             "A sudden change in this ratio points to a change in the dataset, not in the weather."))
+    miss_gen = q["generation"].isna().groupby(q.index.tz_convert(TZ).strftime("%Y-%m")).sum()
+    miss_fc = q["forecast"].isna().groupby(q.index.tz_convert(TZ).strftime("%Y-%m")).sum()
+    bad = pd.DataFrame({"missing_generation": miss_gen, "missing_forecast": miss_fc})
+    bad = bad[(bad > 0).any(axis=1)]
+    if len(bad):
+        report.append("- Months with missing wind values: "
+                      + "; ".join(f"{m}: gen {int(r.missing_generation)}, fc {int(r.missing_forecast)}" for m, r in bad.tail(12).iterrows()) + ".")
     report.append("")
 
 
@@ -661,12 +702,24 @@ def build_line_events(report: list) -> None:
     ev["start"] = pd.to_datetime(ev["baslangicTarihi"].astype(str) + " " + ev["baslangicSaati"].astype(str), errors="coerce")
     ev["end"] = pd.to_datetime(ev["bitisTarihi"].astype(str) + " " + ev["bitisSaati"].astype(str), errors="coerce")
     ev["hours"] = (ev["end"] - ev["start"]).dt.total_seconds() / 3600
+    def clean(t: str) -> str:
+        t = str(t).replace("İ", "i").replace("I", "ı").lower()  # Turkish capital letters
+        if "bak" in t:
+            return "maintenance"
+        if "arıza" in t:
+            return "fault"
+        if "işletme" in t:
+            return "operational"
+        return "other"
+
+    ev["type_clean"] = ev["olayTuru"].map(clean)
     out = ev.rename(columns={"hatAdi": "line", "olayTuru": "type", "aciklama": "description"})[
-        ["start", "end", "hours", "line", "type", "description"]].sort_values("start")
+        ["start", "end", "hours", "line", "type", "type_clean", "description"]].sort_values("start")
     out.assign(hours=out["hours"].round(2)).to_csv(OUT / "line_events.csv", index=False)
     report.append(f"## Interconnection line events\n\n- {len(out)} events from {out['start'].min():%Y-%m-%d} to "
                   f"{out['start'].max():%Y-%m-%d}; {int(out['end'].isna().sum())} without an end time.\n"
-                  f"- Event types: {out['type'].value_counts().to_dict()}.\n")
+                  f"- Event types as published: {out['type'].value_counts().to_dict()}; grouped (`type_clean`): "
+                  f"{out['type_clean'].value_counts().to_dict()}.\n")
 
 
 def build_capacity(report: list) -> None:
@@ -680,6 +733,10 @@ def build_capacity(report: list) -> None:
     def slug(x: str) -> str:
         return kinds.get(x) or re.sub(r"\W+", "_", str(x).lower()).strip("_")
 
+    missing = int(df["renewableEnergyType"].isna().sum())
+    if missing:
+        notes.append(f"ren_capacity: {missing} rows have no source name and were left out.")
+        df = df[df["renewableEnergyType"].notna()]
     df["kind"] = df["renewableEnergyType"].map(slug)
     df["month"] = pd.to_datetime(df["period"]).dt.strftime("%Y-%m")
     parts = []
@@ -689,7 +746,7 @@ def build_capacity(report: list) -> None:
         parts.append(p)
     wide = pd.concat(parts, axis=1).sort_index()
     wide.to_csv(OUT / "ren_capacity_monthly.csv")
-    unknown = sorted(set(df["renewableEnergyType"]) - set(kinds))
+    unknown = sorted(set(df["renewableEnergyType"].astype(str)) - set(kinds))
     report.append(f"## YEKDEM installed capacity (ren-capacity)\n\n- Range: {wide.index.min()} to {wide.index.max()}, "
                   f"{len(wide)} months.\n- Source categories not renamed: {unknown}. Unit assumed MW.\n")
     if {"solar_unlicensed_mw", "solar_licensed_mw"}.issubset(wide.columns):
