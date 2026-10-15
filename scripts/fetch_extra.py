@@ -128,32 +128,44 @@ def call_x(eptr, key: str, start: str, end: str, extra: dict, tries: int = 3) ->
 
 
 def congestion_end_inclusive(eptr) -> bool:
-    """Does a congestion-cost window include its end date? The call returns one total per province for the
-    whole window, so there is no timestamp to filter on. Test it on a month with known costs: if asking for a
-    single day returns that day's cost, the end date is included."""
-    marker = RAW / "congestion" / "_end_inclusive.txt"
+    """Does a congestion-cost window include its whole end date? The call returns one total per province for
+    the window, so there is no timestamp to filter on. Test: take a day d where the cost of d and of d+1 are
+    both above zero (single-day calls), then ask for d..d+1. Inclusive: the answer is the sum of both days.
+    Exclusive: the answer equals day d only. (October 2026: daily results added up to twice the monthly
+    totals, so the end date is included; the first version of this test was wrong and is replaced.)"""
+    marker = RAW / "congestion" / "_end_inclusive_v2.txt"
     if marker.exists():
         return marker.read_text().strip() == "yes"
     spec = SERIES["congestion"]
     extra = spec["variants"][0]  # SMP, up regulation
-    for a, b in ((date(2023, 3, 1), date(2023, 3, 31)), (date(2026, 9, 1), date(2026, 9, 30))):
+    tot = lambda x: pd.to_numeric(x.get("congestionCost"), errors="coerce").sum() if len(x) else 0.0
+    for a, b in ((date(2026, 4, 20), date(2026, 6, 10)), (date(2025, 4, 10), date(2025, 5, 10))):
         d = a
         while d <= b:
+            d1 = d + timedelta(days=1)
             try:
-                same = call_x(eptr, spec["key"], d.isoformat(), d.isoformat(), extra, tries=2)
-                nxt = call_x(eptr, spec["key"], d.isoformat(), (d + timedelta(days=1)).isoformat(), extra, tries=2)
+                s0 = tot(call_x(eptr, spec["key"], d.isoformat(), d.isoformat(), extra, tries=2))
+                s1 = tot(call_x(eptr, spec["key"], d1.isoformat(), d1.isoformat(), extra, tries=2))
+                n = tot(call_x(eptr, spec["key"], d.isoformat(), d1.isoformat(), extra, tries=2))
             except RuntimeError:
                 d += timedelta(days=1)
                 continue
-            tot = lambda x: pd.to_numeric(x.get("congestionCost"), errors="coerce").sum() if len(x) else 0.0
-            if tot(same) > 0 or tot(nxt) > 0:
-                result = tot(same) > 0
+            if s0 > 0 and s1 > 0:
+                tol = 0.01 * (s0 + s1)
+                if abs(n - (s0 + s1)) <= tol:
+                    result = True
+                elif abs(n - s0) <= tol:
+                    result = False
+                else:
+                    d += timedelta(days=1)  # neither: values may have moved between calls, try the next day
+                    continue
                 marker.parent.mkdir(parents=True, exist_ok=True)
                 marker.write_text("yes" if result else "no")
-                print(f"  congestion     end date {'is' if result else 'is not'} included in a window (tested on {d})")
+                print(f"  congestion     end date {'is' if result else 'is not'} included in a window (tested on {d}: "
+                      f"{s0:,.0f} + {s1:,.0f} vs {n:,.0f})")
                 return result
             d += timedelta(days=1)
-    notes.append("congestion: could not test whether the end date is included; assumed yes.")
+    notes.append("congestion: could not test whether the end date is included; assumed yes (October 2026 evidence).")
     return True
 
 
@@ -511,7 +523,7 @@ def build_gas(report: list) -> None:
             report.append(f"- `{c}`: {len(v)} values, min {v.min():,.0f}, median {v.median():,.0f}, max {v.max():,.0f}; "
                           f"zero or negative: {int((v <= 0).sum())}.")
     if "sgp_wavg" in d:
-        jump = d["sgp_wavg"].pct_change().abs()
+        jump = d["sgp_wavg"].pct_change(fill_method=None).abs()
         big = d.index[jump > 0.5]
         report.append(f"- Day-on-day moves above 50% in the spot price: {len(big)}"
                       + (f" (first: {', '.join(str(x.date()) for x in big[:5])})." if len(big) else "."))
@@ -601,6 +613,18 @@ def build_wind(report: list) -> None:
         return
     q = pd.DataFrame({"generation": col(w, "generation"), "forecast": col(w, "forecast")}).sort_index()
     q["error"] = q["forecast"] - q["generation"]
+    # prediction bands: EPİAŞ describes them as Q5, Q25, Q75 and Q95 (columns quarter1..quarter4)
+    names = {"q5": "quarter1", "q25": "quarter2", "q75": "quarter3", "q95": "quarter4"}
+    if all(c in w.columns for c in names.values()):
+        for k, c in names.items():
+            q[k] = col(w, c)
+        # Q5 (and sometimes Q25) can legitimately be 0, so only a zero upper bound means "no band published"
+        have = q[list(names)].notna().all(axis=1) & (q["q95"] > 0)
+        ordered = (q["q5"] <= q["q25"]) & (q["q25"] <= q["q75"]) & (q["q75"] <= q["q95"])
+        q["band_ok"] = have & ordered
+        q["in90"] = ((q["generation"] >= q["q5"]) & (q["generation"] <= q["q95"])).where(q["band_ok"] & q["generation"].notna())
+        q["in50"] = ((q["generation"] >= q["q25"]) & (q["generation"] <= q["q75"])).where(q["band_ok"] & q["generation"].notna())
+        q["width"] = (q["q95"] - q["q5"]).where(q["band_ok"])
     t = pd.Series(q.index.tz_convert(TZ), index=q.index)
     day = q.index.tz_convert(TZ).tz_localize(None).normalize()
     # the sampling step is not fixed: 10 minutes (144 rows a day) until May 2026, then fewer rows a day.
@@ -619,6 +643,11 @@ def build_wind(report: list) -> None:
     daily["wind_gen_mwh"] = (daily["wind_gen_mw"] * 24).where(daily["gen_coverage"] >= 0.9)
     daily["wind_forecast_mwh"] = (daily["wind_forecast_mw"] * 24).where(daily["fc_coverage"] >= 0.9)
     daily["wind_mae_pct_of_gen"] = daily["wind_mae_mw"] / daily["wind_gen_mw"] * 100
+    if "band_ok" in q:
+        daily["band_rows"] = q["band_ok"].groupby(day).sum().astype(int)
+        daily["in_q5_q95_pct"] = q["in90"].groupby(day).mean() * 100
+        daily["in_q25_q75_pct"] = q["in50"].groupby(day).mean() * 100
+        daily["band_width_mw"] = q["width"].groupby(day).mean()
     daily.index.name = "date"
     core = OUT / "core_daily.csv"
     if core.exists():
@@ -639,14 +668,29 @@ def build_wind(report: list) -> None:
                   "Energy, forecast error and the share of real-time wind are only meaningful on the other days.\n"
                   f"- Missing forecast values: {int(q['forecast'].isna().sum())}; missing generation values: "
                   f"{int(q['generation'].isna().sum())}.")
-    extra = [c for c in ("quarter1", "quarter2", "quarter3", "quarter4") if c in w]
-    if extra:
-        nz = {c: int((num(w[c]) != 0).sum()) for c in extra}
-        report.append(f"- Columns `quarter1`..`quarter4` (probably forecast quantile bands, meaning unconfirmed): non-zero rows {nz}.")
+    if "band_ok" in q:
+        yrs = q.index.tz_convert(TZ).year
+        share = q["band_ok"].groupby(yrs).mean()
+        mon = q["band_ok"].groupby(q.index.tz_convert(TZ).strftime("%Y-%m")).mean().tail(8)
+        n_q5_zero = int(((q["q5"] == 0) & (q["q95"] > 0)).sum())
+        n_have = int((q[list(names)].notna().all(axis=1) & (q["q95"] > 0)).sum())
+        n_bad = int((q[list(names)].notna().all(axis=1) & (q["q95"] > 0) & ~q["band_ok"]).sum())
+        report.append("- Prediction bands (`quarter1`..`quarter4` taken as Q5, Q25, Q75, Q95 per EPİAŞ's description; a band counts as published when Q95 is above 0, Q5 = 0 is allowed). "
+                      f"Rows with valid bands by year: " + ", ".join(f"{y}: {v:.0%}" for y, v in share.items())
+                      + ". Last months: " + ", ".join(f"{m}: {v:.0%}" for m, v in mon.items())
+                      + f". Rows where the bands are present but not in ascending order: {n_bad} of {n_have}. "
+                      f"Rows with a valid band where Q5 is exactly 0: {n_q5_zero}.")
+        cov = q.dropna(subset=["in90"]).groupby(q.dropna(subset=["in90"]).index.tz_convert(TZ).year)[["in90", "in50"]].mean()
+        if len(cov):
+            report.append("- Share of actual generation inside the bands (a calibrated forecast would show 90% and 50%): "
+                          + "; ".join(f"{y}: {r.in90:.0%} / {r.in50:.0%}" for y, r in cov.iterrows()) + ".")
     if "monitored_share_of_rt_wind" in daily:
         full = daily[daily["complete"]]["monitored_share_of_rt_wind"].dropna()
         if len(full):
             by_year = full.groupby(full.index.year).median()
+            by_month = full.groupby(full.index.strftime("%Y-%m")).median().tail(18)
+            report.append("- Same ratio by month (last 18 months): " + ", ".join(f"{m}: {v:.0%}" for m, v in by_month.items())
+                          + ". A step in this ratio marks a change in which plants the call covers.")
             report.append(f"- Wind generation in this call divided by real-time wind generation (rt-gen), complete days only: "
                           f"median {full.median():.0%}, min {full.min():.0%}, max {full.max():.0%}; by year "
                           + ", ".join(f"{y}: {v:.0%}" for y, v in by_year.items())
@@ -699,8 +743,8 @@ def build_line_events(report: list) -> None:
     if ev is None:
         return
     ev = ev.drop_duplicates()
-    ev["start"] = pd.to_datetime(ev["baslangicTarihi"].astype(str) + " " + ev["baslangicSaati"].astype(str), errors="coerce")
-    ev["end"] = pd.to_datetime(ev["bitisTarihi"].astype(str) + " " + ev["bitisSaati"].astype(str), errors="coerce")
+    ev["start"] = pd.to_datetime(ev["baslangicTarihi"].astype(str) + " " + ev["baslangicSaati"].astype(str), errors="coerce", format="mixed")
+    ev["end"] = pd.to_datetime(ev["bitisTarihi"].astype(str) + " " + ev["bitisSaati"].astype(str), errors="coerce", format="mixed")
     ev["hours"] = (ev["end"] - ev["start"]).dt.total_seconds() / 3600
     def clean(t: str) -> str:
         t = str(t).replace("İ", "i").replace("I", "ı").lower()  # Turkish capital letters
@@ -791,13 +835,16 @@ def build_ul_gen(report: list) -> None:
     yearly = h.groupby(h.index.year)[["ul_total_mwh", "ul_solar_mwh", "ul_other_mwh"]].sum()
     lines = ["| Year | Total (GWh) | Solar share | 'Other' share |", "|---|---:|---:|---:|"]
     for y, r in yearly.iterrows():
-        lines.append(f"| {y} | {r['ul_total_mwh'] / 1000:,.0f} | {r['ul_solar_mwh'] / r['ul_total_mwh']:.0%} | "
-                     f"{r['ul_other_mwh'] / r['ul_total_mwh']:.0%} |")
+        tot = r["ul_total_mwh"]
+        if not tot:
+            lines.append(f"| {y} | 0 | - | - |")
+            continue
+        lines.append(f"| {y} | {tot / 1000:,.0f} | {r['ul_solar_mwh'] / tot:.0%} | {r['ul_other_mwh'] / tot:.0%} |")
     report.append("- Shares by year (this series covers only unlicensed plants inside YEKDEM, not all unlicensed plants):\n\n"
                   + "\n".join(lines) + "\n")
 
 
-PROVINCE_FIX = {"AFYON": "AFYONKARAHİSAR"}
+PROVINCE_FIX = {"AFYON": "AFYONKARAHİSAR", "İÇEL": "MERSİN", "İST.AVRUPA": "İSTANBUL-AVRUPA", "İST.ASYA": "İSTANBUL-ASYA"}
 
 
 def build_congestion(report: list) -> None:
@@ -830,6 +877,12 @@ def build_congestion(report: list) -> None:
     top = prov.groupby("province")["smp_total_tl"].sum().sort_values(ascending=False).head(6)
     report.append("- Largest provinces over the whole history (SMP, million TL): "
                   + ", ".join(f"{p} {v / 1e6:,.1f}" for p, v in top.items()) + ".")
+    big = nat["smp_total_tl"].sort_values(ascending=False).head(6)
+    report.append("- Largest national monthly totals (SMP, million TL): " + ", ".join(f"{m}: {v / 1e6:,.0f}" for m, v in big.items())
+                  + ". A few months far above the rest point to events or to a change in how the figure is reported; check before charting.")
+    y26 = prov[prov["month"].str.startswith("2026")].groupby("province")["smp_total_tl"].sum().sort_values(ascending=False).head(5)
+    if len(y26):
+        report.append("- Largest provinces in 2026 so far (SMP, million TL): " + ", ".join(f"{p} {v / 1e6:,.0f}" for p, v in y26.items()) + ".")
     neg = int((df["cost"] < 0).sum())
     report.append(f"- Negative values: {neg}. Rows per month: {df.groupby('month').size().median():.0f} (median).")
     seen = df.groupby("province")["month"].nunique()
