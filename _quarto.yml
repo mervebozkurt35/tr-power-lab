@@ -9,6 +9,7 @@ project:
     - "blog/**/*.qmd"
     - "tools/**/*.qmd"
     - "learn/**/*.qmd"
+    - "regulation/**/*.qmd"
 
 execute:
   freeze: auto             # re-run code in a page only when that page changes
@@ -38,6 +39,16 @@ website:
             href: data/turkiye/balancing.qmd
           - text: "Neighbouring markets"
             href: data/neighbouring-markets/index.qmd
+      - text: "Regulation"
+        menu:
+          - text: "Timeline"
+            href: regulation/index.qmd
+          - text: "Legislation tree"
+            href: regulation/tree.qmd
+          - text: "Institutions"
+            href: regulation/institutions.qmd
+          - text: "Method and sources"
+            href: regulation/method.qmd
       - text: "Reports"
         href: reports/index.qmd
       - text: "Blog"

@@ -1,0 +1,87 @@
+---
+title: "Regulation timeline"
+subtitle: "Laws, regulations and board decisions that shaped the Turkish electricity market"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+from IPython.display import HTML, Markdown
+import plotly.graph_objects as go
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+import regulation_view as rv
+
+ev, inst, log = rv.load()
+n_ver = int((ev["status"] == "verified").sum())
+n_dr = int((ev["status"] == "draft").sum())
+```
+
+```{python}
+#| label: intro
+Markdown(f"""
+This is a dated list of **{len(ev)} milestones** in the Turkish electricity rulebook: the laws, the regulations under them,
+board and presidential decisions, market launches and the new business types (storage, charging, aggregation).
+Each entry names the institutions involved and links to the page it was read on.
+**{n_ver} are verified** against a page that reproduces the official text or an official page; **{n_dr} are drafts**, taken from
+the EPİAŞ handbook, a news item or inference, and are marked so. The chart shows verified entries only.
+
+See the [legislation tree](tree.qmd) for how the instruments depend on each other,
+[institutions](institutions.qmd) for who is responsible for what, and [method](method.qmd) for how this was researched and what was not read.
+""")
+```
+
+::: {.callout-warning}
+## Not legal advice, and not complete
+This is a reading aid built from public pages. It lists milestones, not every amendment; dates are the dates shown on the pages
+read. Check the official text (Resmî Gazete, mevzuat.gov.tr, EPDK) before relying on any entry.
+:::
+
+## Timeline
+
+```{python}
+#| label: chart
+v = ev[ev["status"] == "verified"].copy()
+areas = [a for a in rv.AREAS if a in set(v["area"])]
+fig = cs.figure(None, None, height=470)
+fig.update_layout(hovermode="closest", showlegend=False)
+for a in areas:
+    s = v[v["area"] == a]
+    fig.add_trace(go.Scatter(
+        x=s["when"], y=[a] * len(s), mode="markers", name=a,
+        marker=dict(size=11, color=rv.AREA_COLOURS[a], line=dict(width=1, color=cs.SURF[cs.MODE]["surface"])),
+        customdata=list(zip(s["date"], s["title"], s["kind"])),
+        hovertemplate="%{customdata[0]}<br><b>%{customdata[1]}</b><br>%{customdata[2]}<extra></extra>",
+    ))
+fig.update_yaxes(categoryorder="array", categoryarray=areas[::-1], showgrid=True)
+cs.show(fig)
+```
+
+## All entries
+
+```{python}
+#| label: table
+HTML(rv.filter_controls(ev) + rv.timeline_table(ev) + rv.FILTER_JS)
+```
+
+## Download
+
+```{python}
+#| label: download
+out = ev.drop(columns=["when"])
+HTML(cs.download_link(out, "tr_power_lab_regulation_timeline.csv", "Timeline (CSV)")
+     + cs.download_link(inst, "tr_power_lab_institutions.csv", "Institutions (CSV)")
+     + cs.download_link(log, "tr_power_lab_regulation_research_log.csv", "Research log (CSV)"))
+```
+
+Column `parent` links each entry to the instrument it rests on (it builds the tree); `status` is `verified` or `draft`.
+Licence: CC BY 4.0, with the original texts remaining the property of their publishers.

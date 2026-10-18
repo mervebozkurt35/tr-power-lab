@@ -1,0 +1,36 @@
+---
+title: "Legislation tree"
+subtitle: "Which instrument rests on which"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import regulation_view as rv
+
+ev, inst, log = rv.load()
+```
+
+Laws sit at the top, the regulations issued under them below, and the decisions, tenders and market launches that apply them
+below those. Open a branch to see what is under it; each title leads to the dated entry on the [timeline](index.qmd).
+The line under a title says how it relates to the one above it. Where a link between two instruments was inferred
+rather than read, the line says so.
+
+Three things the tree does not show: amendments that were not read (listed in [method](method.qmd)), instruments outside the
+electricity market (natural gas, the Energy Efficiency Law, the Environment Law), and the exact articles most regulations rest on.
+
+```{python}
+#| label: tree
+HTML(rv.tree_html(ev))
+```

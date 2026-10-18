@@ -1,0 +1,67 @@
+---
+title: "Method and sources"
+subtitle: "How the regulation timeline was researched, and what was not read"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+import regulation_view as rv
+
+ev, inst, log = rv.load()
+```
+
+## How entries were chosen
+
+An entry is in the list if it changed one of: how prices are formed or settled, who may operate in the market, how generation is
+supported or connected, or whether a new kind of business (storage, charging, aggregation, unlicensed generation) is allowed.
+The aim of the first version is the main milestones, not every amendment. Amendments that were found but not read are
+listed at the end of the log below.
+
+## How an entry was checked
+
+1. **Find it.** Start from the EPİAŞ market handbook and from a search for the instrument's title.
+2. **Read a page that reproduces the text.** The Resmî Gazete and mevzuat.gov.tr could not be opened from the research environment.
+   The pages used instead are Alomaliye's reproductions of the gazette text, the Ministry's consolidated text of the Electricity
+   Market Law, EPİAŞ and TEİAŞ pages, and law-firm notes.
+3. **Mark it.** `verified` means the title, number and date were read on one of those pages, and the effect column is limited to what was read.
+   `draft` means the entry rests on the handbook, a news item or inference, or the text itself was not read.
+4. **Keep the doubt.** Where a source disagreed with another, or a link between two instruments was inferred, the source note says so.
+
+## What the limits are
+
+- Most dates are publication dates in the Resmî Gazete as shown on the reproduction; where only the adoption date was read,
+  the date column says so.
+- A reproduction is not the official text. Dates and numbers should be checked against the gazette before they are cited.
+- Press reports are used for tariff steps and support prices that no reproduced text was found for; these are marked.
+- The tree links ("parent") show which instrument an entry rests on. Some links were inferred from dates and titles and are labelled as such.
+
+## Research log
+
+Every source opened for an entry, and the attempts that failed or turned up a discrepancy.
+
+```{python}
+#| label: log
+HTML(rv.log_table(log) + cs.download_link(log, "tr_power_lab_regulation_research_log.csv", "Research log (CSV)"))
+```
+
+## Still to read
+
+- Amendments to the Balancing and Settlement Regulation of 2024 and 2025 (the January and December 2025 entries are drafts)
+- Amendments to the Unlicensed Generation Regulation of 2024, November 2025 and April 2026
+- The December 2025 YEK Regulation amendment and the 2024 Licence and Grid Regulation amendments
+- Laws 3096 and 4283 (build-operate models), the Energy Efficiency Law and the Natural Gas Market Law
+- The TETAŞ and EÜAŞ merger, the 2019 Transparency and market operation changes and the Transparency Platform regulation
+- The Presidential decision on the support deadline (number), and the gazette text of the free consumer limit decisions

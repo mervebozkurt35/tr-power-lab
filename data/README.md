@@ -51,3 +51,15 @@ Written to `data/processed/`:
 | `quality_report_extra.md` | Ranges, gaps and checks from the last run |
 
 **Reservoir history cannot be backfilled.** EPİAŞ returns only the latest day, so `reservoirs_daily.csv` is the only copy of the history and starts on the first day the script ran. Commit it, and run the script every day (until the automation does) so no day is lost.
+
+## Regulation section (`data/regulation/`)
+
+Hand-built from public pages, not from EPİAŞ. `scripts/regulation_view.py` reads these three files and the four pages in `regulation/` render them.
+
+| File | Content |
+|---|---|
+| `events.csv` | One row per milestone: `id`, `date`, `date_type` (publication, adoption, decision, start, reported, month, year), `title`, `instrument` (number and gazette), `kind`, `area`, `institutions` (codes joined by `;`), `parent` (the `id` of the instrument it rests on; builds the tree), `relation`, `effect`, `source_url`, `source_note`, `status` |
+| `institutions.csv` | `code`, `name`, `role`, `legal_basis`, `status` |
+| `research_log.csv` | Each source opened for an entry, and failed or disputed attempts |
+
+`verified` means the title, number and date were read on a page that reproduces the official text or on an official page; `draft` means handbook, news or inference. Only `verified` entries appear on the chart. Add an entry by adding a row with a new `id`, a `parent` that exists, and institution codes that exist in `institutions.csv`, then add its source to the log.

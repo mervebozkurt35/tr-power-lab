@@ -10,6 +10,7 @@ subtitle: "Sources, definitions and how the data is processed"
 | EPİAŞ Şeffaflık Platformu | Prices, volumes, generation, consumption, imbalance | Web services, through the open source Python package [eptr2](https://github.com/Tideseed/eptr2) |
 | EPDK | Licence registers | Published files |
 | ENTSO-E Transparency Platform | Neighbouring markets (planned) | API |
+| Resmî Gazete reproductions, Ministry and EPİAŞ pages, law-firm notes | Regulation timeline | Read by hand; see [method and sources](regulation/method.qmd) |
 
 TR Power Lab is independent. It is not affiliated with EPİAŞ, TEİAŞ or EPDK. Figures come from these sources. Any errors in processing are mine.
 
