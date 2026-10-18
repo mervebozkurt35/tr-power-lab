@@ -27,6 +27,8 @@ below those. Open a branch to see what is under it; each title leads to the date
 The line under a title says how it relates to the one above it. Where a link between two instruments was inferred
 rather than read, the line says so.
 
+New to the Turkish terms? See [how the instruments rank, with the Turkish terms](#ranking) below the tree.
+
 Three things the tree does not show: amendments that were not read (listed in [method](method.qmd)), instruments outside the
 electricity market (natural gas, the Energy Efficiency Law, the Environment Law), and the exact articles most regulations rest on.
 
@@ -34,3 +36,50 @@ electricity market (natural gas, the Energy Efficiency Law, the Environment Law)
 #| label: tree
 HTML(rv.tree_html(ev))
 ```
+
+
+## How the instruments rank, with the Turkish terms {#ranking}
+
+Turkish rules form a ladder. A rule lower on the ladder must rest on one above it and cannot contradict it. The list reads from the top.
+This is a reading guide for the timeline, not a legal text; how binding a communiqué or a procedure is depends on its own legal basis.
+
+| Rank | English | Turkish | Who issues it | Example in this section |
+|---|---|---|---|---|
+| 1 | Constitution | Anayasa | Constituent power (referendum) | Article 124 lets public bodies issue regulations; the Constitutional Court (Anayasa Mahkemesi) checks laws against it |
+| 2 | Ratified international agreement | Uluslararası antlaşma | President signs, Parliament approves | Energy and interconnection agreements (none in the timeline yet) |
+| 3 | Law | Kanun | Parliament (TBMM) | Law 6446, the Electricity Market Law (Elektrik Piyasası Kanunu) |
+| 3 | Decree law (until 2018) | Kanun Hükmünde Kararname (KHK) | Council of Ministers, with delegated authority | KHK 703 (2018) |
+| 3 | Presidential decree (from 2018) | Cumhurbaşkanlığı Kararnamesi (CBK) | President | None in the timeline yet |
+| 4 | Presidential decision (before 2018: Council of Ministers decision) | Cumhurbaşkanı Kararı (before 2018: Bakanlar Kurulu Kararı, BKK) | President (before 2018, the Council of Ministers) | Decision 3453 on renewable support prices; BKK 2015/8317 on transition periods |
+| 5 | Regulation | Yönetmelik | A ministry or public body, here mostly EPDK, to apply a law | Balancing and Settlement Regulation (DUY), Licence Regulation |
+| 6 | Communiqué | Tebliğ | The same bodies; details and methods under a regulation | EPDK's revenue regulation and tariff communiqués (not yet in the timeline) |
+| 6 | Procedures and principles | Usul ve Esaslar | EPDK, adopted by board decision | The price limits procedure under the DUY |
+| 7 | Board decision | Kurul Kararı | EPDK Board (Enerji Piyasası Düzenleme Kurulu) | Decision 8965-2, price limit decisions, free consumer limit decisions |
+
+Two kinds of board decision matter. A **regulatory decision** (düzenleyici işlem) sets a rule for the whole market, such as the price limits or the free consumer limit.
+An **individual decision** (bireysel işlem) applies to one company, such as granting a licence or a fine.
+Both are called a Kurul Kararı, so the timeline names the subject, not just the number.
+
+### Stages and states of a text
+
+| English | Turkish | What it means here |
+|---|---|---|
+| Bill | Kanun teklifi | A proposal to Parliament. Since 2018 it comes from members of parliament; the older term for a government bill is kanun tasarısı |
+| Draft | Taslak | A text published for comment before adoption; EPDK usually asks for opinions (görüş) on regulation drafts |
+| Adoption date | Kabul tarihi | The day Parliament passed a law |
+| Publication | Yayım | Printing in the Official Gazette (Resmî Gazete, RG); the date most regulations are cited by |
+| Duplicate issue | Mükerrer | An extra issue of the same gazette number, often used for urgent texts |
+| Entry into force | Yürürlüğe giriş | The day the text applies, which can differ from publication |
+| Amendment | Değişiklik (also tadil) | A text that changes another; the amended text keeps its number |
+| Provisional article | Geçici madde | A transition rule inside a law or regulation |
+| Additional article | Ek madde | An article added later, usually numbered with an extra mark |
+| Consolidated text | Güncel metin or birleştirilmiş metin | The current text with all amendments included |
+| First, old, latest version | İlk, eski, son versiyon (or hal) | EPDK's labels for versions on its pages |
+| Repealed | Mülga | No longer in force; EPDK keeps lists of repealed texts |
+| Annulment | İptal | A court removes a text: the Constitutional Court for laws, the Council of State (Danıştay) for regulations |
+| Stay of execution | Yürütmenin durdurulması | A court suspends a text while the case is pending |
+| Legal basis | Dayanak | The article of a higher text that authorises a regulation |
+| Licence, pre-licence | Lisans, önlisans | The permits EPDK grants; the pre-licence comes first |
+| Legislation | Mevzuat | All of these texts together |
+
+Terms for the institutions are on the [institutions](institutions.qmd) page.
