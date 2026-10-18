@@ -46,7 +46,7 @@ listed at the end of the log below.
   the date column says so.
 - A reproduction is not the official text. Dates and numbers should be checked against the gazette before they are cited.
 - Press reports are used for tariff steps and support prices that no reproduced text was found for; these are marked.
-- The tree links ("parent") show which instrument an entry rests on. Some links were inferred from dates and titles and are labelled as such.
+- The "rests on" lines on the cards come from the `parent` column. Some links were inferred from dates and titles and are labelled as such.
 
 ## Research log
 

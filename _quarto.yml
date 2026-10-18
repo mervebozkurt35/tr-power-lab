@@ -41,10 +41,10 @@ website:
             href: data/neighbouring-markets/index.qmd
       - text: "Regulation"
         menu:
-          - text: "Timeline"
+          - text: "Market timeline"
             href: regulation/index.qmd
-          - text: "Legislation tree"
-            href: regulation/tree.qmd
+          - text: "Instrument index"
+            href: regulation/instruments.qmd
           - text: "Institutions"
             href: regulation/institutions.qmd
           - text: "Method and sources"

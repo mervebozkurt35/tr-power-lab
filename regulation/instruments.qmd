@@ -1,0 +1,42 @@
+---
+title: "Instrument index"
+subtitle: "Every law, regulation and decision in the timeline, one line each"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import pandas as pd
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+import regulation_view as rv
+
+ev, inst, log = rv.load()
+```
+
+```{python}
+#| label: intro
+Markdown(f"""
+{len(ev)} instruments and events behind the [market timeline](index.qmd). Filter by area or status, or search by number or name.
+The Turkish name is shown where it was read on an official list. The full explanation of each is on the timeline cards.
+""")
+```
+
+```{python}
+#| label: table
+HTML(rv.filter_controls(ev) + rv.instrument_table(ev) + rv.FILTER_JS)
+```
+
+```{python}
+#| label: download
+HTML(cs.download_link(ev.drop(columns=["when"]), "tr_power_lab_regulation_instruments.csv", "Instruments (CSV)"))
+```

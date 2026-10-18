@@ -23,18 +23,7 @@ import regulation_view as rv
 ev, inst, log = rv.load()
 ```
 
-Each card gives the role as the sources describe it and the basis for it. Open the list under a card to see the timeline entries
-where that institution is named. A role marked **draft** comes from the EPİAŞ handbook or a news item and was not read in the law itself.
-
-## Who is named in which area
-
-The number of timeline entries in which an institution is named, by area. It counts mentions in this list of milestones;
-it is not a measure of how important an institution is.
-
-```{python}
-#| label: matrix
-HTML(rv.matrix_html(ev, inst))
-```
+Each card gives the role as the sources describe it, and the basis for it.
 
 ## Institutions
 

@@ -17,4 +17,4 @@ Planned topics:
 - Bilateral contracts
 - YEKDEM and renewable support
 - Licensing
-- The legislation tree: laws, regulations, procedures and board decisions, each linked to its official text (a first version of the tree and timeline is already in the [Regulation](../regulation/tree.qmd) section)
+- The legislation tree: laws, regulations, procedures and board decisions, each linked to its official text (a first version of the timeline is already in the [Regulation](../regulation/index.qmd) section)

@@ -54,12 +54,14 @@ Written to `data/processed/`:
 
 ## Regulation section (`data/regulation/`)
 
-Hand-built from public pages, not from EPİAŞ. `scripts/regulation_view.py` reads these three files and the four pages in `regulation/` render them.
+Hand-built from public pages, not from EPİAŞ. `scripts/regulation_view.py` reads these files and the pages in `regulation/` render them.
 
 | File | Content |
 |---|---|
-| `events.csv` | One row per milestone: `id`, `date`, `date_type` (publication, adoption, decision, start, reported, month, year), `title`, `instrument` (number and gazette), `kind`, `area`, `institutions` (codes joined by `;`), `parent` (the `id` of the instrument it rests on; builds the tree), `relation`, `effect`, `source_url`, `source_note`, `status` |
+| `milestones.csv` | The cards of the vertical timeline: `id`, `date`, `type` (one of the seven areas), `title`, `summary` (2 to 3 sentences on what changed), `instruments` (ids from `events.csv`, main one first; `status` is that instrument's status) |
+| `events.csv` | One row per instrument or event: `id`, `date`, `date_type`, `title`, `label` (short name), `name_tr` (Turkish name where read on an official list), `instrument` (number and gazette), `kind`, `area`, `institutions` (codes joined by `;`), `parent` (the `id` of the instrument it rests on), `relation`, `effect`, `source_url`, `source_note`, `status` |
 | `institutions.csv` | `code`, `name`, `role`, `legal_basis`, `status` |
+| `coverage.csv` | Every instrument on EPDK's electricity index, EPİAŞ's legislation page and the EPDK procedure pages against the timeline, with a priority (`high`, `medium`, `low`, `history`, `out of scope`) |
 | `research_log.csv` | Each source opened for an entry, and failed or disputed attempts |
 
-`verified` means the title, number and date were read on a page that reproduces the official text or on an official page; `draft` means handbook, news or inference. Only `verified` entries appear on the chart. Add an entry by adding a row with a new `id`, a `parent` that exists, and institution codes that exist in `institutions.csv`, then add its source to the log.
+`verified` means the title, number and date were read on a page that reproduces the official text or on an official page; `draft` means handbook, news or inference. A card's status is the status of its first instrument, and sentences that come from the handbook or the press say so. Add a milestone by adding a row with instrument ids that exist in `events.csv`.
