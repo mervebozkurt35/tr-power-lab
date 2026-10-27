@@ -179,6 +179,20 @@ def read_text(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, dtype=str, keep_default_na=False)
 
 
+REVISION_BUCKETS = [("to_3d", 0, 3), ("4_14d", 4, 14), ("15_31d", 15, 31), ("32_62d", 32, 62), ("over_62d", 63, 10**6)]
+
+
+def log_revisions(target: Path, name: str, end: date, ages: pd.Series) -> None:
+    """Append how old the revised days were, so the refresh window can be set from evidence.
+    A day revised 1-3 days after the fact is normal (the last hours arrive late); older revisions are the ones the window is for."""
+    row = {"run_end": end.isoformat(), "file": name, "revised_days": len(ages), "oldest_age_days": int(ages.max())}
+    for label, lo, hi in REVISION_BUCKETS:
+        row[label] = int(((ages >= lo) & (ages <= hi)).sum())
+    path = target / "revision_log.csv"
+    pd.DataFrame([row]).to_csv(path, mode="a", header=not path.exists(), index=False)
+    status["files"][name]["revised_by_age"] = {k: row[k] for k, _, _ in REVISION_BUCKETS}
+
+
 def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: date) -> bool:
     """Replace the rows of `name` from window_from on with the new build, keep everything older as it is."""
     group, tcol, keys, allow_missing = FILES[name]
@@ -205,7 +219,9 @@ def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: d
     if old is None:
         merged = new
         added, changed = len(new), 0
+        rev_ages = None
     else:
+        rev_ages = None
         missing = [c for c in old.columns if c not in new.columns]
         if missing and len(missing) >= len([c for c in old.columns if c not in keys]):
             info.update(level="error", message="none of the data columns are in the new build")
@@ -253,6 +269,8 @@ def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: d
                 for c in cols:
                     diff |= both[f"{c}_old"] != both[f"{c}_new"]
                 changed = int(diff.sum())
+                if tcol == "date" and changed:
+                    rev_ages = (pd.Timestamp(end) - pd.to_datetime(both.loc[diff, tcol])).dt.days
                 if name == "core_daily.csv" and changed:
                     for c in ("ptf_mean", "consumption_mwh"):
                         x = pd.to_numeric(both[f"{c}_old"], errors="coerce")
@@ -279,6 +297,8 @@ def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: d
     tmp = old_path.with_suffix(".csv.tmp")
     merged.to_csv(tmp, index=False)
     os.replace(tmp, old_path)
+    if rev_ages is not None:
+        log_revisions(target, name, end, rev_ages)
     last = merged[tcol].max()
     info.update(level="ok", rows=len(merged), added=added, changed=changed, last=str(last)[:10] if tcol != "month" else str(last))
     print(f"  {name:34s} +{added:4d} rows, {changed:4d} revised, last {info['last']}")

@@ -34,7 +34,7 @@ SOURCES = {"gas": ["gas_mwh"], "coal": ["lignite_mwh", "imported_coal_mwh", "har
 
 def add_metrics(df):
     df = df.copy()
-    df["like_for_like"] = df["consumption_mwh"] - df["embedded_gen_est_mwh"].fillna(0).clip(lower=0)
+    df["net_cons"] = df["consumption_mwh"] - df["embedded_gen_est_mwh"].fillna(0).clip(lower=0)
     df["renew_share"] = df[RENEW].sum(axis=1, min_count=1) / df["total_mwh"]
     return df
 
@@ -78,7 +78,7 @@ ytd = add_metrics(d.loc[f"{last.year}-01-01": last])
 ytd_ly = add_metrics(d.loc[f"{last.year - 1}-01-01": last - pd.DateOffset(years=1)])
 p_ytd, p_ytd_ly = ytd["ptf_eur_mean"].mean(), ytd_ly["ptf_eur_mean"].mean()
 c_ytd, c_ytd_ly = ytd["consumption_mwh"].sum() / 1e6, ytd_ly["consumption_mwh"].sum() / 1e6
-l_ytd, l_ytd_ly = ytd["like_for_like"].sum() / 1e6, ytd_ly["like_for_like"].sum() / 1e6
+l_ytd, l_ytd_ly = ytd["net_cons"].sum() / 1e6, ytd_ly["net_cons"].sum() / 1e6
 
 # Generation: the source whose output changed most against the same month last year.
 src_now = {k: r[c].sum() / 1e6 for k, c in SOURCES.items()}
@@ -95,9 +95,9 @@ price = (f"**Prices.** {cur:%B}'s average PTF was **{r['ptf_eur_mean']:.1f} EUR/
          f"({ry['deficit_share']:.0%} a year earlier).")
 demand = (f"**Demand.** Consumption in {cur:%B} was **{r['consumption_mwh'] / 1e6:.1f} TWh**, "
           f"{move(pct(r['consumption_mwh'], ry['consumption_mwh']))} on {mon(ly)} as reported and "
-          f"{move(pct(r['like_for_like'], ry['like_for_like']))} like-for-like, without unmetered generation. "
+          f"{move(pct(r['net_cons'], ry['net_cons']))} net of unmetered generation. "
           f"Demand peaked at {d.loc[peak_day, 'peak_consumption_mw']:,.0f} MW on {peak_day.day} {peak_day:%B}. "
-          f"Year to date, consumption is {move(pct(c_ytd, c_ytd_ly))} as reported and {move(pct(l_ytd, l_ytd_ly))} like-for-like.")
+          f"Year to date, consumption is {move(pct(c_ytd, c_ytd_ly))} as reported and {move(pct(l_ytd, l_ytd_ly))} net of unmetered generation.")
 gen = (f"**Generation.** Renewables supplied **{r['renew_share']:.0%}** of metered generation in {cur:%B}, "
        f"against {ry['renew_share']:.0%} in {mon(ly)}. The biggest change from a year earlier was in "
        f"{cs.label('generation', mover).lower()}, {'+' if dmov > 0 else '−'}{abs(dmov):.1f} TWh "
@@ -132,7 +132,7 @@ rows = [
     ("Zero-price hours", "ptf_zero_hours", lambda v: f"{v:,.0f}", "abs"),
     ("Hours system short", "deficit_share", lambda v: f"{v:.0%}", "pts"),
     ("Consumption, reported (TWh)", "consumption_mwh", lambda v: f"{v / 1e6:,.1f}", "pct"),
-    ("Consumption, like-for-like (TWh)", "like_for_like", lambda v: f"{v / 1e6:,.1f}", "pct"),
+    ("Consumption, net of unmetered (TWh)", "net_cons", lambda v: f"{v / 1e6:,.1f}", "pct"),
     ("Metered generation (TWh)", "total_mwh", lambda v: f"{v / 1e6:,.1f}", "pct"),
     ("Renewable share of generation", "renew_share", lambda v: f"{v:.0%}", "pts"),
     ("Peak demand (MW)", "peak_consumption_mw", lambda v: f"{v:,.0f}", "pct"),
@@ -216,7 +216,7 @@ Generation by source since 2014 and consumption since 2016.
 
 ::: {.tile}
 ### [Volatility](volatility.qmd)
-Daily spreads, balancing costs and intraday volatility. Coming in November.
+Daily spreads, balancing costs, intraday gaps and hours at zero.
 :::
 
 ::: {.tile}

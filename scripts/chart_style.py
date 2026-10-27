@@ -189,15 +189,31 @@ def mode_buttons(fig, modes: list[dict], x: float = 0, y: float = 1.03) -> None:
                                         xanchor="left", yanchor="bottom", buttons=buttons)])
 
 
+MONTH_HOVER = "%b %Y"      # hover title of a monthly chart
+DAY_HOVER = "%b %d, %Y"
 CONFIG = {"displaylogo": False, "responsive": True, "typesetMath": False, "displayModeBar": False,
           "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d"]}
+
+
+def _first_of_month(x) -> bool:
+    """True if every x value is a date on the first day of a month (a monthly series)."""
+    try:
+        s = pd.to_datetime(pd.Series(list(x))).dropna()
+    except (ValueError, TypeError):
+        return False
+    return len(s) > 1 and bool((s.dt.day == 1).all())
 
 
 def show(fig) -> None:
     """Display a chart in a Quarto page with the site's Plotly settings.
 
     typesetMath is off so a "$" in a label is never treated as LaTeX (and MathJax is not needed).
+    A chart whose points are all first-of-month dates is a monthly chart, so its hover title reads "Aug 2025",
+    not "Aug 1, 2025". Charts with a time-step button set their own format (see MONTH_HOVER).
     """
+    xs = [t.x for t in fig.data if getattr(t, "x", None) is not None and len(t.x)]
+    if xs and all(_first_of_month(x) for x in xs[:3]):
+        fig.update_xaxes(hoverformat=MONTH_HOVER)
     fig.show(config=CONFIG)
 
 

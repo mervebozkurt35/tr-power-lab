@@ -105,7 +105,8 @@ def clean_list(s):
 time_buttons = []
 for i, name in enumerate(views):
     vis = [j == i for j in range(3)]
-    time_buttons.append(dict(label=name, method="update", args=[{"visible": vis}]))
+    time_buttons.append(dict(label=name, method="update",
+                             args=[{"visible": vis}, {"xaxis.hoverformat": cs.MONTH_HOVER if name == "Monthly" else cs.DAY_HOVER}]))
 unit_buttons = []
 for label_, (key, hf, hu) in unit_defs.items():
     unit_buttons.append(dict(
@@ -138,18 +139,19 @@ y = clean["sgp_wavg_eur_mwh"].resample("YS").mean()
 pk = monthly["sgp_wavg_eur_mwh"].idxmax()
 l12 = clean.loc[last - pd.DateOffset(years=1): last]
 rng = l12["sgp_wavg"].max() - l12["sgp_wavg"].min()
+daily_move = clean["sgp_wavg"].pct_change(fill_method=None).abs().loc[last - pd.DateOffset(years=1): last].median() * 100
 txt = (f"The spot price peaked in {pk:%B %Y} at {monthly.loc[pk, 'sgp_wavg_eur_mwh']:.0f} EUR/MWh "
        f"({monthly.loc[pk, 'sgp_wavg']:,.0f} TL per 1,000 Sm³), {monthly.loc[pk, 'sgp_wavg_eur_mwh'] / y.loc['2021-01-01']:.1f} times the 2021 average. "
        f"Over the last twelve months the daily price ranged between {l12['sgp_wavg'].min():,.0f} and "
-       f"{l12['sgp_wavg'].max():,.0f} TL per 1,000 Sm³. Day-to-day moves are small, which is what a price "
-       "anchored to a regulated tariff looks like; we have not yet checked how closely it follows the BOTAŞ tariff. "
+       f"{l12['sgp_wavg'].max():,.0f} TL per 1,000 Sm³, and the median change from one day to the next was {daily_move:.1f}%. "
+       "One possible reason for such small moves is a link to BOTAŞ's regulated tariff; we have not checked this. "
        "In euros the price also changes with the exchange rate.")
 Markdown(txt)
 ```
 
 ## Gas and power prices
 
-Gas-fired plants often set the price of electricity, so the price of gas is a first guide to the price of power. The dashed line is the fuel cost of producing one megawatt-hour of electricity from spot gas at 50% efficiency: the gas price divided by 0.5. It leaves out carbon costs, operating costs and plant start-up costs, and a plant's real efficiency is usually lower than 50%, so read it as a floor on a plant's costs, not as a profit measure. When PTF is below the line, a gas plant with average efficiency would lose money on fuel alone in that month.
+Gas-fired plants often set the price of electricity, so the price of gas is a first guide to the price of power. The dashed line is the fuel cost of producing one megawatt-hour of electricity from spot gas, assuming 50% efficiency: the gas price divided by 0.5. The 50% is an illustrative round figure, not a measured average of the Turkish fleet. The most modern combined-cycle plants are rated higher (a new plant in Kırklareli is [announced](https://www.modernpowersystems.com/news/turkiyes-first-ha-powered-plant-starts-operations/) at above 63% net in combined-cycle mode), and older plants are lower. A plant at 60% would have a fuel cost one sixth below the line. The line also leaves out carbon costs, operating costs and plant start-up costs, so read it as a rough reference for fuel cost, not as a profit measure. When PTF is below the line, a plant running at 50% would not cover its fuel cost at that month's average prices.
 
 ```{python}
 #| label: gas-power-chart
@@ -183,7 +185,7 @@ Markdown(txt)
 
 ## Gas-fired generation
 
-The share of Türkiye's electricity generated from natural gas. It falls when hydro, wind and solar output is high, and it rises in dry years and in summer peaks.
+The share of Türkiye's electricity generated from natural gas. It usually falls when hydro, wind and solar output is high, and rises in dry years and in summer peaks.
 
 ```{python}
 #| label: share-chart
@@ -223,7 +225,22 @@ cs.show(fig4)
 
 ## The balancing gas price
 
-Gas shippers who are out of balance with the gas system buy or sell the difference at the balancing gas price (BGP). In the data the BGP purchase price is a fixed percentage above the spot reference price and the sale price a fixed percentage below it: 3% until 2022 and 5% from 2023. That looks like a rule written into the market design, not a price found by trading; this is still to be confirmed with EPİAŞ. The practical meaning is that being out of balance in the gas system costs a constant share of the gas price.
+```{python}
+#| label: bgp-text
+yr_prem = g["bgp_buy_premium_pct"].groupby(g.index.year).median().dropna().round(0)
+segs = []
+for yv, pv in yr_prem.items():
+    if segs and segs[-1][2] == pv:
+        segs[-1][1] = yv
+    else:
+        segs.append([yv, yv, pv])
+desc = ", ".join((f"{p:.0f}% in {a}" if a == b else f"{p:.0f}% from {a} to {b}") if i < len(segs) - 1 else
+                 (f"{p:.0f}% in {a}" if a == b else f"{p:.0f}% from {a}") for i, (a, b, p) in enumerate(segs))
+Markdown("Gas shippers who are out of balance with the gas system buy or sell the difference at the balancing gas price (BGP). "
+         "In the data the BGP purchase price is a fixed percentage above the spot reference price and the sale price a fixed percentage below it "
+         f"(yearly medians of the purchase premium: {desc}). That looks like a rule written into the market design, not a price found by trading; "
+         "this is still to be confirmed with EPİAŞ. The practical meaning is that being out of balance in the gas system costs a constant share of the gas price.")
+```
 
 ```{python}
 #| label: bgp-table
@@ -266,36 +283,10 @@ Markdown(yy_fmt.apply(lambda c: c.str.replace("-", "−", regex=False)).to_markd
 
 Yearly figures are averages of daily values; spot volume is a total. The spot gas market starts on 26 July 2018, so 2018 is a partial year.
 
-### Download the data
-
-```{python}
-#| label: downloads
-cols_d = {"sgp_wavg": "spot_gas_ref_price_try_per_1000sm3", "sgp_wavg_tl_mwh": "spot_gas_try_mwh",
-          "sgp_wavg_eur_mwh": "spot_gas_eur_mwh", "sgp_wavg_usd_mwh": "spot_gas_usd_mwh",
-          "sgp_day_ahead": "spot_gas_day_ahead_try_per_1000sm3", "sgp_intraday": "spot_gas_intraday_try_per_1000sm3",
-          "sgp_matched_qty": "spot_gas_matched_thousand_sm3", "sgp_outlier": "flag_isolated_spike_or_dip",
-          "bgp_buy": "balancing_gas_purchase_try_per_1000sm3", "bgp_sell": "balancing_gas_sale_try_per_1000sm3",
-          "bgp_buy_premium_pct": "bgp_purchase_above_spot_pct", "bgp_sell_discount_pct": "bgp_sale_below_spot_pct"}
-dd = g[list(cols_d)].rename(columns=cols_d).round(4)
-dd.index = dd.index.strftime("%Y-%m-%d")
-mm = pd.DataFrame({"spot_gas_eur_mwh": monthly["sgp_wavg_eur_mwh"], "spot_gas_try_per_1000sm3": monthly["sgp_wavg"],
-                   "spot_gas_usd_mmbtu": monthly["usd_mmbtu"], "spot_gas_try_mwh": monthly["sgp_wavg_tl_mwh"],
-                   "ptf_eur_mwh": pm["ptf_eur_mean"], "gas_fired_share_pct": pm["gas_share"]}).dropna(
-                   subset=["spot_gas_eur_mwh"]).round(4)
-mm.index = mm.index.strftime("%Y-%m")
-stamp = f"{last:%Y%m%d}"
-HTML(
-    cs.download_link(mm.rename_axis("month").reset_index(), f"trpowerlab_gas_monthly_{stamp}.csv", "Monthly (CSV)")
-    + cs.download_link(dd.rename_axis("date").reset_index(), f"trpowerlab_gas_daily_{stamp}.csv", "Daily (CSV)")
-)
-```
-
-Monthly values on this page leave out the flagged one-day spikes and dips; the daily file keeps every day with a flag. Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*; the figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the underlying data belong to EPİAŞ.
-
 ## Notes
 
 - **Source:** EPİAŞ Şeffaflık Platformu natural gas spot market reference price (GRF), balancing gas price (BGP) and spot trade volumes, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`. The lira price per 1,000 Sm³ matches the figure EPİAŞ shows on its platform.
-- **Spikes and dips:** a day whose price differs from both neighbours by more than 25% while the neighbours agree within 15% is flagged as an isolated spike or dip. There are `{python} int(g["sgp_outlier"].sum())` such days (`{python} ", ".join(f"{d:%d %b %Y}" for d in g.index[g["sgp_outlier"] == 1])`). They are left out of the charts and averages here and kept, with a flag, in the downloads.
+- **Spikes and dips:** a day whose price differs from both neighbours by more than 25% while the neighbours agree within 15% is flagged as an isolated spike or dip. There are `{python} int(g["sgp_outlier"].sum())` such days (`{python} ", ".join(f"{d:%d %b %Y}" for d in g.index[g["sgp_outlier"] == 1])`). They are left out of the charts and averages here.
 - **Revisions:** the day-after price is filled in a day later, so the newest days can change.
-- **Not shown yet:** the gas system imbalance and the physical entry and exit volumes; we are still confirming their units. The BOTAŞ tariff and the TTF hub price, the natural comparison for the spot price, are also still to be added.
+- **Not shown:** the gas system imbalance and the physical entry and exit volumes (their units are unconfirmed), the BOTAŞ tariff, and the TTF hub price.
 - See the [methodology](../../methodology.qmd) for definitions.

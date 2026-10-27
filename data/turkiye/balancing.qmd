@@ -98,13 +98,17 @@ cs.show(fig)
 
 ```{python}
 #| label: volume-note
-a = mf.loc["2026-04-01":"2026-06-01"] if "2026-06-01" in mf.index else mf.tail(3)
+# The three consecutive months with the most up-regulation ordered under label 1.
+roll = mf["up_code1_mwh"].rolling(3).sum().loc["2014":]
+end_ = roll.idxmax()
+a = mf.loc[end_ - pd.DateOffset(months=2): end_]
 yr_ago = mf.loc[a.index[0] - pd.DateOffset(years=1): a.index[-1] - pd.DateOffset(years=1)]
-txt = (f"Between {a.index[0]:%B} and {a.index[-1]:%B} {a.index[-1].year}, the operator ordered "
-       f"{a['up_instr'].sum() / 1000:,.0f} GWh up, {a['up_code1_mwh'].sum() / a['up_instr'].sum() * 100:.0f}% of it "
-       f"with the grid-constraint label, against {yr_ago['up_instr'].sum() / 1000:,.0f} GWh and "
+dn_now, dn_ago = a["down_instr"].sum() / 1000, yr_ago["down_instr"].sum() / 1000
+txt = (f"The three months with the most up-regulation under the grid-constraint label were {a.index[0]:%B} to {a.index[-1]:%B %Y}: "
+       f"the operator ordered {a['up_instr'].sum() / 1000:,.0f} GWh up, {a['up_code1_mwh'].sum() / a['up_instr'].sum() * 100:.0f}% of it "
+       f"with that label, against {yr_ago['up_instr'].sum() / 1000:,.0f} GWh and "
        f"{yr_ago['up_code1_mwh'].sum() / yr_ago['up_instr'].sum() * 100:.0f}% a year earlier. "
-       f"Down-regulation also rose: {a['down_instr'].sum() / 1000:,.0f} GWh against {yr_ago['down_instr'].sum() / 1000:,.0f} GWh.")
+       f"Down-regulation was {'higher' if dn_now > dn_ago else 'lower'}: {dn_now:,.0f} GWh against {dn_ago:,.0f} GWh.")
 Markdown(txt)
 ```
 
@@ -132,11 +136,12 @@ cs.show(fig2)
 #| label: share-note
 yr = d.loc["2020":str(last.year - 1)].groupby(d.loc["2020":str(last.year - 1)].index.year)
 sh = yr["up_code1_mwh"].sum() / yr["up_instr"].sum() * 100
+pm_ = mf.loc["2020":, "up_constraint_share"].idxmax()
+pv_ = mf.loc[pm_, "up_constraint_share"]
 Markdown(f"From {sh.index.min()} to {sh.index.max()} the grid-constraint label covered between {sh.min():.0f}% and {sh.max():.0f}% "
-         "of up-regulation in a year. The spring of 2026 is far outside that range: almost all up-regulation carried the label.")
+         f"of up-regulation in a year. The highest monthly share since 2020 was {pv_:.0f}% in {pm_:%B %Y}"
+         + (", far outside that range." if pv_ > sh.max() + 20 else "."))
 ```
-
- The [congestion cost](#notes) that EPİAŞ reports rose in the same months.
 
 ## Net volume actually delivered
 
@@ -181,33 +186,26 @@ Markdown(out.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * 
 
 Instructed volumes are the energy ordered; delivered volumes are what plants supplied, so the two differ. Yearly figures are sums of hourly values. The shares are the part of instructed volume that carries label 1.
 
-### Download the data
-
 ```{python}
-#| label: downloads
-cols = {"up_code0_mwh": "up_instructed_label0_balancing_mwh", "up_code1_mwh": "up_instructed_label1_constraint_mwh",
-        "up_code2_mwh": "up_instructed_label2_ancillary_mwh", "down_code0_mwh": "down_instructed_label0_balancing_mwh",
-        "down_code1_mwh": "down_instructed_label1_constraint_mwh", "down_code2_mwh": "down_instructed_label2_ancillary_mwh",
-        "up_delivered_mwh": "up_delivered_mwh", "down_delivered_mwh": "down_delivered_mwh", "net_mwh": "net_delivered_mwh",
-        "up_constraint_share": "up_constraint_share_pct", "down_constraint_share": "down_constraint_share_pct",
-        "hours": "hours_in_period"}
-dm = m[list(cols)].rename(columns=cols).round(2)
-dm.index = dm.index.strftime("%Y-%m")
-dd = d[list(cols)].rename(columns=cols).round(2)
-dd.index = dd.index.strftime("%Y-%m-%d")
-stamp = f"{last:%Y%m%d}"
-HTML(
-    cs.download_link(dm.rename_axis("month").reset_index(), f"trpowerlab_balancing_monthly_{stamp}.csv", "Monthly (CSV)")
-    + cs.download_link(dd.rename_axis("date").reset_index(), f"trpowerlab_balancing_daily_{stamp}.csv", "Daily (CSV)")
-)
+#| label: notes-values
+cg = pd.read_csv(ROOT / "data/processed/congestion_monthly.csv", index_col=0)
+ct = cg["smp_total_tl"].groupby(cg.index.str[:4]).sum() / 1e9
+cy_, py_ = str(last.year), str(last.year - 1)
+cm_ = cg.loc[cg.index.str[:4] == cy_, "smp_total_tl"].idxmax()
+cm_share = mf.loc[pd.Timestamp(cm_ + "-01"), "up_constraint_share"] if pd.Timestamp(cm_ + "-01") in mf.index else float("nan")
+cong_txt = (f"EPİAŞ also publishes a congestion cost by province. Its national total at SMP prices was about {ct[py_]:.1f} billion TL in {py_} "
+            f"and about {ct[cy_]:.1f} billion TL in {cy_} so far; the highest month of {cy_} was {pd.Timestamp(cm_ + '-01'):%B} "
+            f"({cg.loc[cm_, 'smp_total_tl'] / 1e9:.1f} billion TL)"
+            + (f", when {cm_share:.0f}% of up-regulation carried label 1" if pd.notna(cm_share) else "")
+            + ". We do not show it on this page because its exact definition and reference price are still to be confirmed.")
+l2 = d.index[(d["up_code2_mwh"] + d["down_code2_mwh"]) > 0]
+l2_txt = f"Label 2 last appears in the data on {l2.max():%d %B %Y}." if len(l2) else "Label 2 does not appear in the data."
 ```
-
-Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*; the figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the underlying data belong to EPİAŞ.
 
 ## Notes {#notes}
 
 - **Source:** EPİAŞ Şeffaflık Platformu balancing power market instructions (up and down regulation), summed from hourly values, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`. The current month is left out of the monthly charts until it is complete.
-- **Labels:** 0 = balancing, 1 = relief of system (grid) constraints, 2 = ancillary services, as defined in the Balancing and Settlement Regulation. Label 2 is zero in the data from 2019. The published code and the regulation's label are assumed to be the same; this is still to be confirmed with EPİAŞ.
-- **Congestion cost:** EPİAŞ also publishes a congestion cost by province. It rose from about 0.3 billion TL in 2025 to about 16 billion TL in 2026, with its peak in April to June, the months in which label-1 instructions dominate. We do not show it on this page yet because its exact definition and reference price are still to be confirmed.
+- **Labels:** 0 = balancing, 1 = relief of system (grid) constraints, 2 = ancillary services, as defined in the Balancing and Settlement Regulation. `{python} l2_txt` The published code and the regulation's label are assumed to be the same; this is still to be confirmed with EPİAŞ.
+- **Congestion cost:** `{python} cong_txt`
 - **Instructed and delivered:** the volumes by label are instruction volumes; delivered volumes are published separately and without a label split.
 - See the [methodology](../../methodology.qmd) for definitions.

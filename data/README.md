@@ -10,7 +10,11 @@ The site is built on three layers, so history is collected once and every later 
 
 ## Daily update
 
-`.github/workflows/update-data.yml` runs every morning (06:37 Istanbul time). It starts `scripts/update_data.py`, which downloads the last two months from EPİAŞ, rebuilds them and replaces those rows in `data/processed/`. Older rows are never rewritten. The two months are refreshed every day because EPİAŞ revises recent values; on the 1st of each month the last six are refreshed. The new files are committed to `main`, the site is rebuilt and published in the same run.
+`.github/workflows/update-data.yml` runs every morning (06:37 Istanbul time). It starts `scripts/update_data.py`, which downloads the last two months from EPİAŞ, rebuilds them and replaces those rows in `data/processed/`. Older rows are never rewritten. The two months are refreshed every day as a precaution, because recent values can be completed or revised after first publication; on the 1st of each month the last six are refreshed. `data/processed/revision_log.csv` records, for every run, how many days were revised and how old they were, so the window can be shortened or kept based on what actually changes. If the data is behind by more than the window (for example after a pause), the window widens by itself and fills the gap. The new files are committed to `main`, the site is rebuilt and published in the same run, and an overview of the latest day (prices, demand, generation, update status) is sent by e-mail.
+
+### E-mail after each run
+
+`scripts/daily_digest.py` writes the overview and the `notify` job sends it. It needs three repository secrets (Settings > Secrets and variables > Actions): `MAIL_USERNAME` (sender address, Gmail by default), `MAIL_APP_PASSWORD` (a Google app password, not the normal password) and optionally `MAIL_TO`. Without them no mail is sent and the run is not marked as failed. A manual run with "write" unticked sends a mail marked TRIAL.
 
 - `data/processed/update_status.json` records the newest day in each file, the time of the last check, and any warnings or errors. The data pages show "Data through …" from it.
 - A file is replaced only if its checks pass (columns, row count, plausible consumption and prices). If a series fails, its old rows stay, the rest is still published, and the run is marked failed so GitHub sends an email.

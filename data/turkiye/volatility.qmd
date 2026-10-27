@@ -95,7 +95,7 @@ cs.show(fig)
 
 ## The cost of being out of balance
 
-When the system is short, the operator buys extra energy in the balancing market and SMF usually rises above PTF. When it is long, SMF usually falls below PTF. The gap is what a market participant risks by being out of balance in that direction: imbalance prices are built from PTF and SMF. Bars show the monthly average gap, split by system direction, in euros, lira or as a percentage of the month's average PTF. The percentage is the best way to compare years: a gap of 300 TL/MWh meant much more in 2016 than it does today.
+When the system is short, the operator buys extra energy in the balancing market and SMF usually rises above PTF. When it is long, SMF usually falls below PTF. The gap is what a market participant risks by being out of balance in that direction: imbalance prices are built from PTF and SMF. Bars show the monthly average gap, split by system direction, in euros, lira or as a percentage of the month's average PTF. The percentage is the best way to compare years: a gap of 300 TL/MWh is a large share of a 150 TL/MWh average price and a small share of a 2,000 TL/MWh one.
 
 ```{python}
 #| label: gap-chart
@@ -129,7 +129,7 @@ txt = (f"The highest short-side gap in percentage terms is {pk:%B %Y}: SMF was {
        f"{g.loc[pk, 'gap_when_short_pct']:.0f}% of the average price. ")
 if g.loc[pk, "gap_when_short"] > 1.5 * prev:
     txt += (f"The lira gap itself was also well above the {prev:,.0f} TL/MWh median of the previous twelve months: "
-            f"when day-ahead prices were low, balancing prices did not fall with them. ")
+            f"this suggests that balancing prices did not fall with the low day-ahead prices. ")
 txt += "Percentages exaggerate gaps in months with a low average PTF, so read them next to the lira and euro views."
 Markdown(txt)
 ```
@@ -189,35 +189,9 @@ Markdown(tab.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * 
 
 Gaps in euros are converted from lira at the exchange rate implied by EPİAŞ's own lira and euro prices for each day; percentages divide the average gap by the average PTF of the same period. Yearly figures are averages of daily values; zero-price hours are totals.
 
-### Download the data
-
-```{python}
-#| label: downloads
-cols = {"ptf_spread": "ptf_daily_spread_try_mwh", "ptf_spread_eur": "ptf_daily_spread_eur_mwh",
-        "ptf_std": "ptf_hourly_std_try_mwh", "ptf_std_eur": "ptf_hourly_std_eur_mwh",
-        "smf_ptf_gap": "smf_minus_ptf_try_mwh", "gap_when_short": "smf_minus_ptf_when_short_try_mwh",
-        "gap_when_long": "smf_minus_ptf_when_long_try_mwh", "aof_ptf_gap": "aof_minus_ptf_try_mwh",
-        "ptf_zero_hours": "hours_ptf_zero", "deficit_share": "share_hours_system_short",
-        "smf_ptf_gap_eur": "smf_minus_ptf_eur_mwh", "gap_when_short_eur": "smf_minus_ptf_when_short_eur_mwh",
-        "gap_when_long_eur": "smf_minus_ptf_when_long_eur_mwh", "aof_ptf_gap_eur": "aof_minus_ptf_eur_mwh",
-        "smf_ptf_gap_pct": "smf_minus_ptf_pct_of_ptf", "gap_when_short_pct": "smf_minus_ptf_when_short_pct_of_ptf",
-        "gap_when_long_pct": "smf_minus_ptf_when_long_pct_of_ptf", "aof_ptf_gap_pct": "aof_minus_ptf_pct_of_ptf"}
-dm = m[list(cols)].rename(columns=cols).round(4)
-dm.index = dm.index.strftime("%Y-%m")
-dd = d[list(cols)].rename(columns=cols).round(4)
-dd.index = dd.index.strftime("%Y-%m-%d")
-stamp = f"{last:%Y%m%d}"
-HTML(
-    cs.download_link(dm.rename_axis("month").reset_index(), f"trpowerlab_volatility_monthly_{stamp}.csv", "Monthly (CSV)")
-    + cs.download_link(dd.rename_axis("date").reset_index(), f"trpowerlab_volatility_daily_{stamp}.csv", "Daily (CSV)")
-)
-```
-
-Monthly spreads and standard deviations are averages of daily values. Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*; the figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the underlying data belong to EPİAŞ.
-
 ## Notes
 
 - **Source:** EPİAŞ Şeffaflık Platformu hourly PTF, SMF, system direction and intraday weighted average price, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`.
-- **Price caps** limit how high prices and spreads can go; the cap has changed several times since 2022.
+- **Price caps** limit how high prices and spreads can go; the cap is set by regulatory decision and has been raised more than once since 2022 (see [Prices](prices.qmd)).
 - **Coming next:** the spread of individual intraday trades around each contract's volume-weighted median, a measure of how much a perfectly informed trader could have earned.
 - See the [methodology](../../methodology.qmd) for definitions.

@@ -64,6 +64,7 @@ share, share_all = renew_share(yr)
 share_prev, _ = renew_share(prev)
 cons, cons_prev = yr["consumption_mwh"].sum() / 1e6, prev["consumption_mwh"].sum() / 1e6
 peak_day = d.loc[f"{last.year}-01-01":, "peak_consumption_mw"].idxmax()
+unm12 = yr["embedded_gen_est_mwh"].clip(lower=0).sum() / 1e6
 
 tiles = [
     ("Renewable share, last 12 months", f"{share:.0%} of metered generation",
@@ -72,6 +73,8 @@ tiles = [
      f"{(cons / cons_prev - 1) * 100:+.1f}% on the previous 12 months".replace("-", "−")),
     (f"Peak demand in {last.year}", f"{d.loc[peak_day, 'peak_consumption_mw']:,.0f} MW",
      f"hourly peak on {peak_day:%d %B}"),
+    ("Unmetered generation, last 12 months", f"{unm12:.1f} TWh",
+     f"{unm12 / (cons / 1) * 100:.0f}% of reported consumption (estimate)"),
 ]
 HTML('<div class="tile-grid">' + "".join(
     f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
@@ -131,94 +134,84 @@ TWh of metered generation by source. Coal combines lignite, imported coal and ha
 
 ## Demand
 
-Monthly consumption, one line per year, so each year can be compared with the same months before it. The latest year is highlighted.
-
-From 30 December 2020 the real-time consumption series also counts demand met by unmetered generation, which made reported consumption jump by about 3% overnight. **Reported** shows the series as published. **Like-for-like** removes our estimate of unmetered generation, so years before and after the change can be compared directly.
-
-```{python}
-#| label: demand-chart
-cm = m[["consumption_mwh", "embedded_gen_est_mwh"]].loc["2016-01-01":].copy()
-cm = cm[complete.loc[cm.index]]
-cm["like_for_like"] = cm["consumption_mwh"] - cm["embedded_gen_est_mwh"].fillna(0).clip(lower=0)
-years = sorted(cm.index.year.unique())
-month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-single = cs.colours("single", "")[cs.MODE]
-
-fig3 = cs.figure(None, "TWh per month", height=440)
-for basis in ("consumption_mwh", "like_for_like"):
-    for yv in years:
-        s = cm.loc[cm.index.year == yv, basis] / 1e6
-        latest, previous = yv == years[-1], yv == years[-2]
-        colour = single if latest else (S["ink_muted"] if previous else S["axis"])
-        fig3.add_trace(go.Scatter(
-            x=[month_names[i - 1] for i in s.index.month], y=s, name=str(yv), mode="lines",
-            line=dict(color=colour, width=2.5 if latest else (1.5 if previous else 1), dash="dot" if previous else None),
-            visible=(basis == "consumption_mwh"), showlegend=(latest or previous) and basis == "consumption_mwh",
-            hovertemplate=f"{yv}: %{{y:.2f}} TWh<extra></extra>"))
-n = len(years)
-fig3.update_layout(
-    hovermode="x unified", margin=dict(t=48),
-    updatemenus=[dict(type="buttons", direction="right", active=0, x=0, y=1.03, xanchor="left", yanchor="bottom",
-                      buttons=[dict(label="Reported", method="update",
-                                    args=[{"visible": [True] * n + [False] * n,
-                                           "showlegend": [y in years[-2:] for y in years] + [False] * n}]),
-                               dict(label="Like-for-like", method="update",
-                                    args=[{"visible": [False] * n + [True] * n,
-                                           "showlegend": [False] * n + [y in years[-2:] for y in years]}])])],
-)
-fig3.add_annotation(x=1, xref="paper", y=1.03, yref="paper", xanchor="right", yanchor="bottom", showarrow=False,
-                    text=f"grey lines: {years[0]}–{years[-3]}", font=dict(size=11, color=S["ink_muted"]))
-cs.style_controls(fig3)
-cs.show(fig3)
-```
+Consumption here is the real-time series published by EPİAŞ. From 30 December 2020 it also counts demand met by unmetered generation (the next section explains what that is), which made reported consumption jump by about 3% overnight. To compare years before and after that date, the table shows consumption **as reported** and **net of unmetered generation**: reported consumption minus our estimate of unmetered generation.
 
 ```{python}
 #| label: yearly-demand
 cy = m[["consumption_mwh", "embedded_gen_est_mwh"]].groupby(m.index.year).sum(min_count=1).loc[2017:] / 1e6
-cy["like_for_like"] = cy["consumption_mwh"] - cy["embedded_gen_est_mwh"].fillna(0)
+cy["net"] = cy["consumption_mwh"] - cy["embedded_gen_est_mwh"].fillna(0)
 peak = m["peak_consumption_mw"].groupby(m.index.year).max().loc[2017:]
 cy = cy[cy.index < last.year]
+growth = lambda s: s.pct_change().map(lambda v: "–" if pd.isna(v) else f"{v:+.1%}".replace("-", "−"))
 tab = pd.DataFrame({
     "Reported (TWh)": cy["consumption_mwh"].map(lambda v: fmt(v, 1)),
-    "Growth, reported": cy["consumption_mwh"].pct_change().map(lambda v: "–" if pd.isna(v) else f"{v:+.1%}".replace("-", "−")),
-    "Like-for-like (TWh)": cy["like_for_like"].map(lambda v: fmt(v, 1)),
-    "Growth, like-for-like": cy["like_for_like"].pct_change().map(lambda v: "–" if pd.isna(v) else f"{v:+.1%}".replace("-", "−")),
+    "Growth, reported": growth(cy["consumption_mwh"]),
+    "Net of unmetered (TWh)": cy["net"].map(lambda v: fmt(v, 1)),
+    "Growth, net of unmetered": growth(cy["net"]),
     "Peak demand (MW)": peak.loc[cy.index].map(lambda v: fmt(v)),
 }).sort_index(ascending=False)
 tab.index = tab.index.astype(str)
 tab.index.name = None
-g21r, g21l = cy["consumption_mwh"].pct_change().get(2021), cy["like_for_like"].pct_change().get(2021)
+g21r, g21n = cy["consumption_mwh"].pct_change().get(2021), cy["net"].pct_change().get(2021)
 Markdown(tab.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(tab.columns)))
 ```
 
-Full years only. Look at 2021: reported consumption grew by `{python} f"{g21r:.1%}"`, like-for-like by `{python} f"{g21l:.1%}"`. The difference is the change in how the series is counted, not extra demand. In recent years the gap between the two growth rates is the growth of self-consumption and rooftop solar.
+Full years only. Reported consumption grew by `{python} f"{g21r:.1%}"` in 2021, but only by `{python} f"{g21n:.1%}"` net of unmetered generation: the difference is the change in how the series is counted, not extra demand. In later years, a gap between the two growth rates mostly reflects the growth of unmetered generation, largely rooftop and other small solar plants.
 
-### Download the data
+## Generation the real-time data does not see
+
+Many small plants, mostly rooftop and other unlicensed solar, are not metered by the system operator in real time. Part of what they produce is used on the spot by the building or factory that owns them, so it never travels through the grid; the rest goes into the local distribution network. Either way it is missing from the generation data above, yet it lowers the demand that the rest of the power system has to serve.
+
+Since 30 December 2020 real-time consumption includes the demand these plants meet. That gives a way to estimate them: **consumption minus metered generation minus net imports**. In the data this estimate is close to zero at night and follows the sun by day, which is what unmetered solar would do. It also picks up any other unmetered generation and metering differences, so it is an estimate, not a measurement. It cannot be built for earlier years, because consumption did not include these plants then.
 
 ```{python}
-#| label: downloads
-gen_cols = {f"{k}_mwh": f"{k}_mwh" for k in ["gas", "lignite", "imported_coal", "hard_coal", "hydro_dam", "hydro_river",
-                                             "wind", "solar", "geothermal", "biomass", "other"]}
-extra = {"total_mwh": "metered_generation_mwh", "net_imports_mwh": "net_imports_mwh",
-         "embedded_gen_est_mwh": "unmetered_generation_estimate_mwh", "consumption_mwh": "consumption_reported_mwh",
-         "peak_consumption_mw": "peak_consumption_mw"}
-cols = {**gen_cols, **extra}
-monthly_dl = m.loc["2014-01-01":, list(cols)].rename(columns=cols).round(1)
-monthly_dl.index = monthly_dl.index.strftime("%Y-%m")
-daily_dl = d.loc["2014-01-01":, list(cols)].rename(columns=cols).round(1)
-daily_dl.index = daily_dl.index.strftime("%Y-%m-%d")
-yearly_dl = m.loc["2014-01-01":, list(cols)].groupby(m.loc["2014-01-01":].index.year).agg(
-    {**{c: "sum" for c in list(gen_cols) + ["total_mwh", "net_imports_mwh", "embedded_gen_est_mwh", "consumption_mwh"]},
-     "peak_consumption_mw": "max"}).rename(columns=cols).round(1)
-stamp = f"{last:%Y%m%d}"
-HTML(
-    cs.download_link(yearly_dl.rename_axis("year").reset_index(), f"trpowerlab_generation_demand_yearly_{stamp}.csv", "Yearly (CSV)")
-    + cs.download_link(monthly_dl.rename_axis("month").reset_index(), f"trpowerlab_generation_demand_monthly_{stamp}.csv", "Monthly (CSV)")
-    + cs.download_link(daily_dl.rename_axis("date").reset_index(), f"trpowerlab_generation_demand_daily_{stamp}.csv", "Daily (CSV)")
+#| label: unmetered-chart
+um = m.loc["2021-01-01":, ["embedded_gen_est_mwh", "consumption_mwh"]].copy()
+um = um[complete.loc[um.index]]
+um["gen_twh"] = um["embedded_gen_est_mwh"].clip(lower=0) / 1e6
+um["share"] = um["embedded_gen_est_mwh"].clip(lower=0) / um["consumption_mwh"] * 100
+
+figu = cs.figure(None, "TWh per month", height=400)
+cs.add_bar(figu, um.index, um["gen_twh"], "generation", "solar_unmetered", name="Unmetered generation (estimate)",
+           hover_fmt=",.2f", unit=" TWh")
+cs.add_bar(figu, um.index, um["share"], "generation", "solar_unmetered", name="Share of reported consumption (estimate)",
+           hover_fmt=",.1f", unit="%")
+figu.data[1].update(visible=False)
+figu.update_layout(
+    showlegend=False, bargap=0.2, margin=dict(t=48),
+    updatemenus=[dict(type="buttons", direction="right", active=0, x=0, y=1.03, xanchor="left", yanchor="bottom",
+                      buttons=[dict(label="TWh", method="update",
+                                    args=[{"visible": [True, False]},
+                                          {"yaxis.title.text": "TWh per month", "yaxis.ticksuffix": "", "yaxis.autorange": True}]),
+                               dict(label="% of consumption", method="update",
+                                    args=[{"visible": [False, True]},
+                                          {"yaxis.title.text": "Share of reported consumption", "yaxis.ticksuffix": "%",
+                                           "yaxis.autorange": True}])])],
 )
+cs.style_controls(figu)
+cs.show(figu)
 ```
 
-Energy in MWh, peak demand in MW. The current year is partial. Please credit *TR Power Lab, based on EPİAŞ Şeffaflık Platformu data*. The figures are ours under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the underlying data belong to EPİAŞ.
+```{python}
+#| label: unmetered-text
+ucur = um.index.max()
+uly = ucur - pd.DateOffset(years=1)
+u12 = um.iloc[-12:]
+txt = (f"In {ucur:%B %Y} the estimate was **{um.loc[ucur, 'gen_twh']:.1f} TWh**, or **{um.loc[ucur, 'share']:.0f}%** of reported consumption"
+       + (f", against {um.loc[uly, 'share']:.0f}% in {uly:%B %Y}" if uly in um.index else "") + ". "
+       f"Over the last 12 complete months it ranged from {u12['share'].min():.0f}% ({u12['share'].idxmin():%B}) "
+       f"to {u12['share'].max():.0f}% ({u12['share'].idxmax():%B}): it follows the sun, not demand. ")
+try:
+    cap = pd.read_csv(ROOT / "data/processed/ren_capacity_monthly.csv", parse_dates=["month"]).set_index("month")["solar_unlicensed_mw"].dropna()
+    cm_ = cap.index[cap.index <= ucur].max()
+    cf = um.loc[cm_, "embedded_gen_est_mwh"] / (cap.loc[cm_] * cm_.days_in_month * 24) * 100
+    txt += (f"As a rough check, EPİAŞ's capacity series lists {cap.loc[cm_] / 1000:.1f} GW of unlicensed solar in {cm_:%B %Y} "
+            f"(unit assumed to be MW); the estimate for that month equals {cf:.0f}% of that capacity running all month, "
+            f"which is a plausible figure for solar.")
+except Exception:
+    pass
+Markdown(txt)
+```
 
 ## Notes {#notes}
 

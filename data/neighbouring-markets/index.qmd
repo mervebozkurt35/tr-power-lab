@@ -2,12 +2,188 @@
 aliases:
   - ../../markets/neighbouring-markets/index.html
 title: "Neighbouring markets"
-subtitle: "Greece, Bulgaria and the links with Türkiye"
+subtitle: "Net electricity imports and exports, and the capacity of the links with Greece and Bulgaria"
+execute:
+  echo: false
+  freeze: false
 ---
 
-::: {.callout-note}
-## Planned
-This section will compare Türkiye with its neighbouring markets.
-:::
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, Markdown
 
-Türkiye's grid runs in sync with the continental European grid. Türkiye is not part of EU market coupling, so capacity on its borders with Greece and Bulgaria is sold in separate auctions. Price differences across these borders are one of the topics this section will follow.
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+core = pd.read_csv(ROOT / "data/processed/core_daily.csv", parse_dates=["date"]).set_index("date")
+cap = pd.read_csv(ROOT / "data/processed/line_capacity_daily.csv", parse_dates=["date"])
+fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
+
+# Net imports: EPİAŞ total across all borders, MWh per day, positive = more imported than exported.
+ni = core["net_imports_mwh"].dropna()
+ni = ni.loc[ni.index >= "2018-01-01"]
+cons = core["consumption_mwh"].reindex(ni.index)
+last = ni.index.max()
+
+def complete_only(s, rule):
+    """Sum per week or month, leaving out the period that is still running."""
+    out = s.resample(rule, label="left", closed="left").sum(min_count=1) if rule == "W-MON" else s.resample("MS").sum(min_count=1)
+    if rule == "W-MON":
+        out = out[out.index + pd.Timedelta(days=6) <= last]
+    else:
+        out = out[out.index + pd.offsets.MonthEnd(0) <= last]
+    return out
+
+views = {"Daily": ni, "Weekly": complete_only(ni, "W-MON"), "Monthly": complete_only(ni, "MS")}
+cons_m = complete_only(cons.dropna(), "MS")
+ni_m = views["Monthly"]
+```
+
+```{python}
+#| label: stamp
+HTML(cs.data_stamp("core_daily.csv", "line_capacity_daily.csv"))
+```
+
+Türkiye's grid runs in sync with the continental European grid. Türkiye is not part of EU market coupling, so capacity on its borders with Greece and Bulgaria is sold in separate auctions. This page shows how much electricity Türkiye imports and exports overall, and how much capacity is listed on the links with its two EU neighbours. Prices on the other side of these borders are not on this page yet.
+
+```{python}
+#| label: tiles
+y12 = ni.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
+c12 = cons.loc[y12.index].sum()
+net12 = y12.sum() / 1e6
+m12 = ni_m.iloc[-12:]
+imp_months = int((m12 > 0).sum())
+latest = cap[cap["date"] == cap["date"].max()].set_index("direction")["total_mw"]
+into = latest.get("BGTR", np.nan) + latest.get("GRTR", np.nan)
+outof = latest.get("TRBG", np.nan) + latest.get("TRGR", np.nan)
+tiles = [
+    ("Last 12 months", f"{abs(net12):,.1f} TWh", f"net {'imports' if net12 > 0 else 'exports'}, {abs(y12.sum()) / c12 * 100:.1f}% of consumption"),
+    ("Net importing months", f"{imp_months} of 12", "months where imports exceeded exports"),
+    ("Listed capacity into Türkiye", f"{into:,.0f} MW", f"Bulgaria and Greece together, daily average, {cap['date'].max():%d %B %Y}"),
+    ("Listed capacity out of Türkiye", f"{outof:,.0f} MW", "to Bulgaria and Greece together, same day"),
+]
+HTML('<div class="tiles">' + "".join(
+    f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
+```
+
+## Net imports and exports
+
+Net imports are the electricity brought in minus the electricity sent out, across all borders, as reported by EPİAŞ. A positive bar means Türkiye imported more than it exported that day, a negative bar means it exported more. The data starts in 2018 and does not split the flow by border or into gross imports and gross exports. Use the buttons to change the time step.
+
+```{python}
+#| label: net-chart
+fig = cs.figure(None, "GWh", height=440)
+for name, s in views.items():
+    gwh = s / 1e3
+    cs.add_bar(fig, gwh.index, gwh.where(gwh >= 0), "markets", "gop", name="Net imports", step=1, hover_fmt=",.0f", unit=" GWh")
+    cs.add_bar(fig, gwh.index, gwh.where(gwh < 0), "markets", "vep", name="Net exports", step=1, hover_fmt=",.0f", unit=" GWh")
+    for t in fig.data[-2:]:
+        t.visible = (name == "Monthly")
+        t.showlegend = (name == "Monthly")
+buttons = []
+for i, name in enumerate(views):
+    vis = [j // 2 == i for j in range(6)]
+    buttons.append(dict(label=name, method="update",
+                        args=[{"visible": vis, "showlegend": vis},
+                              {"xaxis.hoverformat": cs.MONTH_HOVER if name == "Monthly" else cs.DAY_HOVER}]))
+fig.update_layout(updatemenus=[dict(type="buttons", direction="right", buttons=buttons, active=2, x=0, y=1.04,
+                                    xanchor="left", yanchor="bottom", showactive=True, pad=dict(r=6, t=0))],
+                  barmode="relative", bargap=0.1, margin=dict(t=40))
+fig.update_xaxes(rangeselector=dict(buttons=[dict(count=1, label="1Y", step="year", stepmode="backward"),
+                                             dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                             dict(step="all", label="All")],
+                                    x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig)
+cs.show(fig)
+```
+
+```{python}
+#| label: net-text
+yr = ni.groupby(ni.index.year).sum() / 1e6
+full = [y for y in yr.index if y < last.year]
+imp_y = [y for y in full if yr[y] > 0]
+top_imp, top_exp = ni_m.idxmax(), ni_m.idxmin()
+def join(xs):
+    xs = [str(x) for x in xs]
+    return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+exp_y = [y for y in full if yr[y] <= 0]
+parts = []
+if imp_y:
+    parts.append(f"a net importer in {join(imp_y)}")
+if exp_y:
+    parts.append(f"a net exporter in {join(exp_y)}")
+txt = (f"Over the full years in the data, Türkiye was {' and '.join(parts)}. "
+       f"The month with the largest net imports was {top_imp:%B %Y} ({ni_m[top_imp] / 1e6:,.2f} TWh); "
+       f"the month with the largest net exports was {top_exp:%B %Y} ({-ni_m[top_exp] / 1e6:,.2f} TWh). ")
+Markdown(txt)
+```
+
+```{python}
+#| label: net-table
+t = pd.DataFrame({"Net imports (TWh)": yr})
+t["Share of consumption"] = [ni[ni.index.year == y].sum() / cons[ni.index.year == y].sum() * 100 for y in t.index]
+t["Net importing months"] = [f"{int((ni_m[ni_m.index.year == y] > 0).sum())} of {int((ni_m.index.year == y).sum())}" for y in t.index]
+t.index = [f"{y}" + (" (to date)" if y == last.year and last.month < 12 else "") for y in t.index]
+t.index.name = "Year"
+t["Net imports (TWh)"] = t["Net imports (TWh)"].map(lambda v: f"{v:+,.2f}")
+t["Share of consumption"] = t["Share of consumption"].map(lambda v: f"{v:+.1f}%")
+Markdown(t.reset_index().to_markdown(index=False, colalign=("left", "right", "right", "right"), disable_numparse=True))
+```
+
+A negative number is a net export. The share compares the net flow with the electricity consumed in Türkiye over the same days; a few days are missing at the edges of some years, so the shares are approximate.
+
+## Capacity on the Bulgarian and Greek links
+
+EPİAŞ lists a capacity for each direction of the two borders: Bulgaria to Türkiye (BG→TR), Türkiye to Bulgaria (TR→BG), Greece to Türkiye (GR→TR) and Türkiye to Greece (TR→GR). The chart shows the daily average of the hourly values. Capacity is what can be scheduled, not what flows: an interconnector can carry much less than its capacity or none at all.
+
+```{python}
+#| label: cap-chart
+names = {"BGTR": "Bulgaria → Türkiye", "TRBG": "Türkiye → Bulgaria", "GRTR": "Greece → Türkiye", "TRGR": "Türkiye → Greece"}
+keys = {"BGTR": ("markets", "gop"), "TRBG": ("markets", "gop"), "GRTR": ("markets", "bilateral"), "TRGR": ("markets", "bilateral")}
+dash = {"BGTR": None, "TRBG": "dot", "GRTR": None, "TRGR": "dot"}
+piv = cap.pivot(index="date", columns="direction", values="total_mw")
+pm = piv.resample("MS").mean()
+pm = pm[pm.index + pd.offsets.MonthEnd(0) <= piv.index.max()]
+fig2 = cs.figure(None, "MW", height=420)
+for view, df in (("Daily", piv), ("Monthly", pm)):
+    for d in names:
+        cs.add_line(fig2, df.index, df[d], *keys[d], name=names[d], unit=" MW", hover_fmt=",.0f", dash=dash[d], end_label=False)
+        fig2.data[-1].update(visible=(view == "Monthly"), showlegend=(view == "Monthly"))
+btn = []
+for i, view in enumerate(("Daily", "Monthly")):
+    vis = [j // 4 == i for j in range(8)]
+    btn.append(dict(label=view, method="update",
+                    args=[{"visible": vis, "showlegend": vis},
+                          {"xaxis.hoverformat": cs.MONTH_HOVER if view == "Monthly" else cs.DAY_HOVER}]))
+fig2.update_layout(updatemenus=[dict(type="buttons", direction="right", buttons=btn, active=1, x=0, y=1.04,
+                                     xanchor="left", yanchor="bottom", showactive=True, pad=dict(r=6, t=0))],
+                   margin=dict(t=40))
+fig2.update_yaxes(rangemode="tozero")
+cs.style_controls(fig2)
+cs.show(fig2)
+```
+
+```{python}
+#| label: cap-text
+ya = cap.assign(year=cap["date"].dt.year).groupby(["year", "direction"])["total_mw"].mean().unstack()
+y0, y1 = ya.index.min(), ya.index[-1]
+txt = (f"In {y1} the listed capacity averages {ya.loc[y1, 'BGTR']:,.0f} MW from Bulgaria and {ya.loc[y1, 'TRBG']:,.0f} MW to Bulgaria, "
+       f"and {ya.loc[y1, 'GRTR']:,.0f} MW from Greece and {ya.loc[y1, 'TRGR']:,.0f} MW to Greece. ")
+if bool(((ya["BGTR"] > ya["TRBG"]) & (ya["GRTR"] > ya["TRGR"])).all()):
+    txt += f"In every year since {y0} the capacity towards Türkiye has been higher than the capacity out of it, on both borders."
+Markdown(txt)
+```
+
+## Notes
+
+- **Source:** EPİAŞ Şeffaflık Platformu, through [eptr2](https://github.com/Tideseed/eptr2). Net imports are the total across all borders ("net import" in the real-time series). Capacity is the interconnection line capacity published for each direction.
+- **Definition of the capacity series:** the platform publishes a total and an available capacity. The available figure has been zero since 2024, so we show only the total. Whether the total is the physical limit of the line, the capacity offered in auctions or the capacity allocated is still to be confirmed against EPİAŞ's documentation; we therefore do not compute how much of it is used.
+- **Not on this page yet:** flows and prices border by border, which need data from ENTSO-E (the European network of transmission operators), and a comparison of Turkish prices with Greek and Bulgarian ones.
+- See the [methodology](../../methodology.qmd) for definitions.
