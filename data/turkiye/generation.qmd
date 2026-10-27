@@ -47,6 +47,11 @@ last = dd.index.max()
 ```
 
 ```{python}
+#| label: stamp
+HTML(cs.data_stamp("core_daily.csv"))
+```
+
+```{python}
 #| label: tiles
 def renew_share(df):
     g = grouped(df)

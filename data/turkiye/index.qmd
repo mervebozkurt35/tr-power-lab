@@ -65,6 +65,11 @@ mon = lambda t: f"{t:%B %Y}"
 ```
 
 ```{python}
+#| label: stamp
+HTML(cs.data_stamp("core_daily.csv"))
+```
+
+```{python}
 #| label: summary
 r, rp, ry = m.loc[cur], m.loc[prev], m.loc[ly]
 

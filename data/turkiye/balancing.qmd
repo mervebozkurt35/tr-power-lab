@@ -37,6 +37,11 @@ mf = m[full]
 ```
 
 ```{python}
+#| label: stamp
+HTML(cs.data_stamp("balancing_daily.csv"))
+```
+
+```{python}
 #| label: tiles
 w12 = d.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
 share12 = w12["up_code1_mwh"].sum() / w12["up_instr"].sum() * 100

@@ -44,6 +44,11 @@ mf = m[full]
 ```
 
 ```{python}
+#| label: stamp
+HTML(cs.data_stamp("core_daily.csv"))
+```
+
+```{python}
 #| label: tiles
 w30 = d.loc[last - pd.Timedelta(days=29): last]
 w30_ly = d.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1)]

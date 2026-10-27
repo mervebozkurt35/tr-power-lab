@@ -635,25 +635,8 @@ def write_report(start: date, end: date) -> None:
     print("  wrote data/processed/quality_report.md")
 
 
-# ---------------------------------------------------------------- main
-
-def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--start", default="2023-01-01")
-    p.add_argument("--end", default=None, help="default: yesterday")
-    p.add_argument("--refresh-months", type=int, default=2)
-    p.add_argument("--skip-download", action="store_true", help="rebuild outputs from raw files only")
-    a = p.parse_args()
-
-    start = date.fromisoformat(a.start)
-    end = date.fromisoformat(a.end) if a.end else pd.Timestamp.now(tz=TZ).date() - timedelta(days=1)
-
-    if not a.skip_download:
-        print("Downloading from EPİAŞ …")
-        eptr = connect()
-        download(eptr, start, end, a.refresh_months)
-        download_euas(eptr, start, end)
-
+def build(start: date, end: date) -> None:
+    """Clean the raw files in RAW and write the processed files to OUT (used by main and by update_data.py)."""
     print("Cleaning …")
     ptf = clean_ptf(load("ptf", start, end))
     check_prices(ptf)
@@ -678,6 +661,28 @@ def main() -> None:
     print("Writing outputs …")
     build_outputs(prices, cons, gen, extra)
     write_report(start, end)
+
+
+# ---------------------------------------------------------------- main
+
+def main() -> None:
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--start", default="2023-01-01")
+    p.add_argument("--end", default=None, help="default: yesterday")
+    p.add_argument("--refresh-months", type=int, default=2)
+    p.add_argument("--skip-download", action="store_true", help="rebuild outputs from raw files only")
+    a = p.parse_args()
+
+    start = date.fromisoformat(a.start)
+    end = date.fromisoformat(a.end) if a.end else pd.Timestamp.now(tz=TZ).date() - timedelta(days=1)
+
+    if not a.skip_download:
+        print("Downloading from EPİAŞ …")
+        eptr = connect()
+        download(eptr, start, end, a.refresh_months)
+        download_euas(eptr, start, end)
+
+    build(start, end)
 
 
 if __name__ == "__main__":

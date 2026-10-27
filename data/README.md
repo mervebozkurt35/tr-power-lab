@@ -8,7 +8,17 @@ The site is built on three layers, so history is collected once and every later 
 | Processed | `data/processed/` | Cleaned daily and monthly series that charts and reports read | Daily and monthly only |
 | Events | `data/events.csv` | Dated structural changes that charts annotate and reports refer to | Yes |
 
-## How updates work
+## Daily update
+
+`.github/workflows/update-data.yml` runs every morning (06:37 Istanbul time). It starts `scripts/update_data.py`, which downloads the last two months from EPİAŞ, rebuilds them and replaces those rows in `data/processed/`. Older rows are never rewritten. The two months are refreshed every day because EPİAŞ revises recent values; on the 1st of each month the last six are refreshed. The new files are committed to `main`, the site is rebuilt and published in the same run.
+
+- `data/processed/update_status.json` records the newest day in each file, the time of the last check, and any warnings or errors. The data pages show "Data through …" from it.
+- A file is replaced only if its checks pass (columns, row count, plausible consumption and prices). If a series fails, its old rows stay, the rest is still published, and the run is marked failed so GitHub sends an email.
+- A value that was in a file and comes back empty is treated as a failed download and the old value is kept.
+- The reservoir snapshot is taken first, because EPİAŞ returns only the latest day.
+- The raw hourly files are not needed for this. `fetch_core.py` and `fetch_extra.py` remain for a full rebuild or a new series (run them in Colab, then commit the processed files).
+
+## How a full rebuild works
 
 `scripts/fetch_core.py` keeps the full history on disk. Each run skips months it already has, re-downloads only the most recent months (EPİAŞ revises them), and rebuilds the processed files. Adding a new series means adding it to the script once; the first run backfills its whole history and later runs keep it current.
 
@@ -50,7 +60,7 @@ Written to `data/processed/`:
 | `reservoirs_daily.csv`, `reservoirs_info.csv`, `reservoirs_national_daily.csv`, `reservoirs_basin_daily.csv` | Reservoir snapshots, one row per dam and day, dam details with min and max volume, and national and basin fullness |
 | `quality_report_extra.md` | Ranges, gaps and checks from the last run |
 
-**Reservoir history cannot be backfilled.** EPİAŞ returns only the latest day, so `reservoirs_daily.csv` is the only copy of the history and starts on the first day the script ran. Commit it, and run the script every day (until the automation does) so no day is lost.
+**Reservoir history cannot be backfilled.** EPİAŞ returns only the latest day, so `reservoirs_daily.csv` is the only copy of the history and starts on the first day the script ran. Commit it, and the daily workflow (`update-data.yml`) runs the snapshot first, so no day is lost.
 
 ## Regulation section (`data/regulation/`)
 

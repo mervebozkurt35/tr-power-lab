@@ -216,3 +216,28 @@ def download_link(df: pd.DataFrame, filename: str, label: str) -> str:
 def html(fig, div_id: str | None = None) -> str:
     """HTML snippet for a Quarto page. Plotly.js is loaded once by the page, not per chart."""
     return fig.to_html(full_html=False, include_plotlyjs=False, div_id=div_id, config=CONFIG)
+
+
+def data_stamp(*files: str) -> str:
+    """One quiet line for the top of a data page: the newest day in the given processed files and when the
+    daily update last checked EPİAŞ. Reads data/processed/update_status.json, which scripts/update_data.py writes.
+    Returns an empty string if that file does not exist yet."""
+    path = ROOT / "data" / "processed" / "update_status.json"
+    try:
+        st = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    through = st.get("data_through", {})
+    days = [through[f] for f in (files or ("core_daily.csv",)) if f in through]
+    if not days:
+        return ""
+    last = min(days)
+    try:
+        last_txt = pd.Timestamp(last).strftime("%-d %B %Y") if len(last) > 7 else pd.Timestamp(last + "-01").strftime("%B %Y")
+        checked = pd.Timestamp(st["checked"]).strftime("%-d %B %Y, %H:%M")
+    except (KeyError, ValueError):
+        return ""
+    problem = (" The last check could not update every series, so some values may be a day or more behind."
+               if st.get("errors") else "")
+    return (f'<p class="text-muted small">Data through {last_txt}. Updated automatically each morning from EPİAŞ '
+            f'(last check {checked}, Istanbul time).{problem}</p>')

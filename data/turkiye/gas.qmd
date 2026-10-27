@@ -54,6 +54,11 @@ both["margin"] = both["ptf_eur"] - both["gas_fuel_cost"]
 ```
 
 ```{python}
+#| label: stamp
+HTML(cs.data_stamp("gas_daily.csv", "core_daily.csv"))
+```
+
+```{python}
 #| label: tiles
 w30 = clean.loc[last - pd.Timedelta(days=29): last]
 w30_ly = clean.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1)]

@@ -41,6 +41,11 @@ fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
 ```
 
 ```{python}
+#| label: stamp
+HTML(cs.data_stamp("core_daily.csv"))
+```
+
+```{python}
 #| label: tiles
 def window(days, end=last):
     return d.loc[end - pd.Timedelta(days=days - 1): end]
