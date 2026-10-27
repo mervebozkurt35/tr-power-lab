@@ -111,7 +111,7 @@ def build_rows(through: pd.Timestamp | None) -> tuple[list[tuple[str, list[tuple
         item("Peak consumption", "peak_consumption_mw", 1, 0, "MW"),
         item("Metered generation", "total_mwh", 1e-3, 0, "GWh"),
         item("Net imports (positive = import)", "net_imports_mwh", 1e-3, 0, "GWh", mode="none"),
-        item("Unmetered generation (estimate)", "embedded_gen_est_mwh", 1e-3, 0, "GWh"),
+        item("Unlicensed generation fed into the grid (estimate)", "embedded_gen_est_mwh", 1e-3, 0, "GWh"),
     ] + mix))
     sections.append(("Markets", [
         item("Day-ahead market volume", "gop_mwh", 1e-3, 0, "GWh"),
@@ -160,8 +160,26 @@ def health_lines() -> tuple[list[str], list[str], list[str], bool]:
     return files, st.get("warnings", []), st.get("errors", []), bool(st.get("ok", True))
 
 
-def render(sections, day_text, trial, deploy_note) -> tuple[str, str, str]:
+def render(sections, day_text, trial, deploy_note, update_outcome="", day=None) -> tuple[str, str, str]:
     files, warns, errs, ok = health_lines()
+    errs = list(errs)
+    today = pd.Timestamp.now(tz="Europe/Istanbul").tz_localize(None).normalize()
+    stale = None
+    if day is not None:
+        stale = (today - pd.Timedelta(days=1) - day).days
+    status_old = False
+    try:
+        st0 = json.loads((PROC / "update_status.json").read_text(encoding="utf-8"))
+        status_old = pd.Timestamp(st0["checked"]).normalize() < today
+    except Exception:
+        status_old = True
+    if update_outcome == "failure" and status_old:
+        errs.insert(0, "The update step failed before it could write its status file, so nothing was added in this run. "
+                       "Open the build job and read the log of the step \"Fetch new data from EPİAŞ\".")
+        ok = False
+    if stale is not None and stale > 1:
+        errs.append(f"The newest day in the data is {day:%d %B %Y}, {stale} days behind yesterday. This run did not bring the data up to date.")
+        ok = False
     core = read("core_daily.csv")
     ptf = None
     try:
@@ -170,7 +188,7 @@ def render(sections, day_text, trial, deploy_note) -> tuple[str, str, str]:
         ptf = num(core.loc[through, "ptf_mean"])
     except Exception:
         through = None
-    state = "completed" if ok else "completed with problems"
+    state = "completed" if ok else ("FAILED, data is out of date" if (stale or 0) > 1 else "completed with problems")
     subject = (("TRIAL: " if trial else "") + f"TR Power Lab data update {state}: {day_text.split(' ', 1)[1] if ' ' in day_text else day_text}"
                + (f", average PTF {ptf:,.0f} TL/MWh" if ptf else ""))
 
@@ -212,7 +230,7 @@ def render(sections, day_text, trial, deploy_note) -> tuple[str, str, str]:
             h.append(f'<h3 style="margin:16px 0 4px;font-size:15px;color:{colour}">{title}</h3><ul style="margin:0;padding-left:18px">'
                      + "".join(f"<li>{html.escape(x)}</li>" for x in items) + "</ul>")
     h.append(f'<p style="margin-top:16px;color:#777">Sums and averages are for the Istanbul day. Generation is the metered real-time data; '
-             f'unmetered generation is an estimate. <a href="{SITE}">{SITE}</a></p></div>')
+             f'unlicensed generation is an estimate. <a href="{SITE}">{SITE}</a></p></div>')
     return subject, "\n".join(txt), "\n".join(h)
 
 
@@ -240,6 +258,7 @@ def main() -> int:
     ap.add_argument("--trial", action="store_true", help="the data was not committed or published")
     ap.add_argument("--deploy", default="", help="result of the publish job, for one line in the mail")
     ap.add_argument("--send", action="store_true")
+    ap.add_argument("--update-outcome", default="", help="result of the update step (success or failure)")
     ap.add_argument("--send-only", action="store_true", help="send the files already written in --out (used by the notify job)")
     a = ap.parse_args()
 
@@ -266,12 +285,14 @@ def main() -> int:
     except Exception:
         pass
     sections, day_text = build_rows(through)
+    _core = read("core_daily.csv")
+    day_ = (through if through is not None and _core is not None and through in _core.index else (_core.index.max() if _core is not None else None))
     note = ""
     if a.trial:
         note = "Trial run: the new data was not committed and the site was not published."
     elif a.deploy and a.deploy != "success":
         note = f"The site publish step finished with status: {a.deploy}. The data itself is committed."
-    subject, text, body_html = render(sections, day_text, a.trial, note)
+    subject, text, body_html = render(sections, day_text, a.trial, note, a.update_outcome, day_)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "subject.txt").write_text(subject, encoding="utf-8")
