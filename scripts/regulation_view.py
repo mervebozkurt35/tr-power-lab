@@ -176,25 +176,25 @@ def log_table(log: pd.DataFrame) -> str:
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# Macro timeline: five sections, each a vertical list of cards; topic filter and jump links sit in the right-hand sidebar
+# Timeline: one chronological vertical list, one tag per card. The tag filter and the decade links sit in the right-hand
+# sidebar under "On this page" on wide screens, and at the top of the page on narrow ones.
 # ---------------------------------------------------------------------------------------------------------------
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-SECTIONS = ["Liberalisation of Turkish power", "Power market", "Generation", "Grid and system operation", "Transition"]
-SECTION_COLOURS = {"Liberalisation of Turkish power": "#6470E0", "Power market": "#169CAB", "Generation": "#4FA864",
-                   "Grid and system operation": "#D9701F", "Transition": "#9C5CDD"}
-SECTION_IDS = dict(zip(SECTIONS, ["lib", "market", "generation", "grid", "transition"]))
-TOPICS = ["Renewables", "Unlicensed", "Storage", "Consumers", "Gas", "Privatisation", "Climate and EVs"]
+TAGS = ["Liberalisation", "Power market", "Generation", "Grid and system operation", "Market transition"]
+TAG_COLOURS = {"Liberalisation": "#6470E0", "Power market": "#169CAB", "Generation": "#4FA864",
+               "Grid and system operation": "#D9701F", "Market transition": "#9C5CDD"}
 
 VT_CSS = """
 <style>
 .vt { position:relative; margin:0; padding:0 0 0 1.6rem; list-style:none; border-left:2px solid rgba(148,165,175,.35); }
+.vt-decade { margin:1.8rem 0 1rem -1.6rem; padding-left:1.6rem; font-weight:700; font-size:1.15rem; letter-spacing:.02em; }
 .vt-item { position:relative; margin:0 0 1.4rem 0; }
 .vt-item::before { content:""; position:absolute; left:calc(-1.6rem - 7px); top:.55rem; width:12px; height:12px; border-radius:50%;
                    background:var(--c); border:2px solid #0E161B; box-sizing:content-box; }
 .vt-date { font-size:.85rem; opacity:.75; margin:0 0 .15rem 0; }
 .vt-card { border:1px solid rgba(148,165,175,.3); border-left:4px solid var(--c); border-radius:6px; padding:.8rem 1rem; }
-.vt-tags { margin:0 0 .3rem 0; font-size:.72rem; color:var(--c); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+.vt-tag { margin:0 0 .3rem 0; font-size:.72rem; color:var(--c); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
 .vt-title { font-size:1.1rem; font-weight:600; margin:0 0 .35rem 0; }
 .vt-text { margin:0 0 .55rem 0; }
 .vt-foot { margin:0; font-size:.8rem; opacity:.8; display:flex; flex-wrap:wrap; gap:.3rem .5rem; align-items:center; }
@@ -203,14 +203,12 @@ VT_CSS = """
 .vt-side { margin:0 0 1.2rem 0; }
 .vt-side h4 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; opacity:.75; margin:0 0 .5rem 0; font-family:inherit; font-weight:600; }
 .vt-bar { display:flex; flex-wrap:wrap; gap:.35rem; margin:0 0 .5rem 0; }
-.vt-chip { border:1px solid #5FD0C8; color:inherit; background:transparent; border-radius:999px; padding:.1rem .6rem; font-size:.78rem; cursor:pointer; line-height:1.4; }
-.vt-chip[aria-pressed="true"] { background:#5FD0C8; color:#0E161B; font-weight:600; }
-.vt-count { font-size:.78rem; opacity:.75; margin:0 0 .6rem 0; }
-.vt-jump { font-size:.85rem; margin:0; padding:0; list-style:none; }
-.vt-jump li { margin:0 0 .2rem 0; }
+.vt-chip { border:1px solid var(--c); color:inherit; background:transparent; border-radius:999px; padding:.1rem .65rem; font-size:.78rem; cursor:pointer; line-height:1.4; }
+.vt-chip[aria-pressed="true"] { background:var(--c); color:#0E161B; font-weight:600; }
+.vt-count { font-size:.78rem; opacity:.75; margin:0 0 .8rem 0; }
+.vt-jump { font-size:.85rem; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:.2rem .8rem; list-style:none; }
 .vt-in-side { border-top:1px solid rgba(148,165,175,.25); padding-top:1rem; margin-top:1.2rem; }
-.vt-in-side .vt-jump, .vt-in-side .vt-jump-h { display:none; }
-@media (max-width: 576px) { .vt { padding-left:1.2rem; } .vt-item::before { left:calc(-1.2rem - 7px); } }
+@media (max-width: 576px) { .vt { padding-left:1.2rem; } .vt-item::before { left:calc(-1.2rem - 7px); } .vt-decade { margin-left:-1.2rem; padding-left:1.2rem; } }
 </style>
 """
 
@@ -218,22 +216,21 @@ VT_JS = """
 <script>
 (function () {
   var active = null;
-  function items() { return document.querySelectorAll('.vt-item'); }
   function apply() {
-    var shown = 0, all = items();
+    var all = document.querySelectorAll('.vt-item'), shown = 0;
     all.forEach(function (it) {
-      var ok = !active || (it.dataset.topics || '').split('|').indexOf(active) !== -1;
+      var ok = !active || it.dataset.tag === active;
       it.style.display = ok ? '' : 'none';
       if (ok) shown++;
     });
-    document.querySelectorAll('ol.vt').forEach(function (ol) {
-      var any = Array.prototype.some.call(ol.children, function (li) { return li.style.display !== 'none'; });
-      var sec = ol.closest('section.level2') || ol.parentNode;
-      sec.style.display = any ? '' : 'none';
+    document.querySelectorAll('.vt-decade').forEach(function (d) {
+      var any = false, n = d.nextElementSibling;
+      while (n && !n.classList.contains('vt-decade')) { if (n.style.display !== 'none') any = true; n = n.nextElementSibling; }
+      d.style.display = any ? '' : 'none';
     });
-    document.querySelectorAll('.vt-chip').forEach(function (c) { c.setAttribute('aria-pressed', c.dataset.topic === active ? 'true' : 'false'); });
+    document.querySelectorAll('.vt-chip').forEach(function (c) { c.setAttribute('aria-pressed', c.dataset.tag === active ? 'true' : 'false'); });
     var n = document.getElementById('vt-count');
-    if (n) n.textContent = shown + ' of ' + all.length + ' milestones shown' + (active ? ' (' + active + ')' : '');
+    if (n) n.textContent = shown + ' of ' + all.length + ' milestones shown';
   }
   function place() {
     var box = document.getElementById('vt-side'), home = document.getElementById('vt-home'), side = document.getElementById('quarto-margin-sidebar');
@@ -244,7 +241,7 @@ VT_JS = """
   }
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.vt-chip').forEach(function (c) {
-      c.addEventListener('click', function () { active = (active === c.dataset.topic) ? null : c.dataset.topic; apply(); });
+      c.addEventListener('click', function () { active = (active === c.dataset.tag) ? null : c.dataset.tag; apply(); });
     });
     place(); apply();
     window.addEventListener('resize', place);
@@ -260,30 +257,35 @@ def _src(label: str, url: str) -> str:
     return f'<a href="{escape(url)}">{escape(label)}</a>' if url else f'<span>{escape(label)}</span>'
 
 
+def _decades(ms: pd.DataFrame) -> list:
+    return sorted({d[:3] for d in ms["date"]})
+
+
 def side_block(ms: pd.DataFrame) -> str:
-    """Topic filter and section links. On wide screens the script moves this block under 'On this page'."""
-    present = {t for s in ms["topics"] for t in s.split(";") if t}
-    chips = "".join(f'<button type="button" class="vt-chip" data-topic="{escape(t)}" aria-pressed="false">{escape(t)}</button>'
-                    for t in TOPICS if t in present)
-    jump = "".join(f'<li><a href="#{SECTION_IDS[s]}">{escape(s)}</a></li>' for s in SECTIONS)
-    return (VT_CSS + '<div id="vt-home"><div id="vt-side" class="vt-side"><h4>Filter by topic</h4>'
+    """Tag filter and decade links. On wide screens the script moves this block under 'On this page'."""
+    present = set(ms["tag"])
+    chips = "".join(f'<button type="button" class="vt-chip" style="--c:{TAG_COLOURS[t]}" data-tag="{escape(t)}" aria-pressed="false">{escape(t)}</button>'
+                    for t in TAGS if t in present)
+    jump = "".join(f'<li><a href="#vt-{d}0s">{d}0s</a></li>' for d in _decades(ms))
+    return (VT_CSS + '<div id="vt-home"><div id="vt-side" class="vt-side"><h4>Tags</h4>'
             f'<div class="vt-bar">{chips}</div><p class="vt-count" id="vt-count"></p>'
-            f'<h4 class="vt-jump-h">Jump to</h4><ul class="vt-jump">{jump}</ul></div></div>' + VT_JS)
+            f'<h4>Jump to</h4><ul class="vt-jump">{jump}</ul></div></div>' + VT_JS)
 
 
-def section_html(ms: pd.DataFrame, section: str) -> str:
-    rows = ms[ms["section"] == section].sort_values(["date", "id"])
-    c = SECTION_COLOURS[section]
-    out = []
+def timeline_html(ms: pd.DataFrame) -> str:
+    rows = ms.sort_values(["date", "id"])
+    out, seen = [], set()
     for _, m in rows.iterrows():
-        topics = [t for t in m["topics"].split(";") if t]
-        tags = f'<div class="vt-tags">{" · ".join(escape(t) for t in topics)}</div>' if topics else ""
+        dec = m["date"][:3]
+        if dec not in seen:
+            seen.add(dec)
+            out.append(f'<li class="vt-decade" id="vt-{dec}0s">{dec}0s</li>')
         laws = "".join(f'<span class="vt-law">{escape(t)}</span>' for t in m["tags"].split(";") if t)
         srcs = ", ".join(x for x in (_src(m["s1_label"], m["s1_url"]), _src(m["s2_label"], m["s2_url"])) if x)
         src = f'<span class="vt-src">Source: {srcs}</span>' if srcs else ""
         out.append(
-            f'<li class="vt-item" id="{escape(m["id"])}" data-topics="{escape("|".join(topics))}" style="--c:{c}">'
-            f'<p class="vt-date">{escape(m["shown"])}</p><div class="vt-card">{tags}'
+            f'<li class="vt-item" id="{escape(m["id"])}" data-tag="{escape(m["tag"])}" style="--c:{TAG_COLOURS[m["tag"]]}">'
+            f'<p class="vt-date">{escape(m["shown"])}</p><div class="vt-card"><div class="vt-tag">{escape(m["tag"])}</div>'
             f'<h3 class="vt-title">{escape(m["title"])}</h3><p class="vt-text">{escape(m["summary"])}</p>'
             f'<p class="vt-foot">{laws}{src}</p></div></li>')
     return f'<ol class="vt">{"".join(out)}</ol>'

@@ -58,7 +58,7 @@ Hand-built from public pages, not from EPİAŞ. `scripts/regulation_view.py` rea
 
 | File | Content |
 |---|---|
-| `milestones.csv` | The cards of the timeline: `id`, `date` (sort key), `shown` (date as displayed), `section` (one of five), `topics` (filter topics, `;`-separated), `title`, `summary` (1 to 3 sentences), `tags` (legal tags), `s1_label`/`s1_url`/`s2_label`/`s2_url` (up to two sources and what kind they are), `instruments` (ids from `events.csv`) |
+| `milestones.csv` | The cards of the timeline: `id`, `date` (sort key), `shown` (date as displayed), `tag` (Liberalisation, Power market, Generation, Grid and system operation or Market transition), `title`, `summary` (1 to 3 sentences), `tags` (legal tags), `s1_label`/`s1_url`/`s2_label`/`s2_url` (up to two sources and what kind they are), `instruments` (ids from `events.csv`) |
 | `events.csv` | One row per instrument or event: `id`, `date`, `date_type`, `title`, `label` (short name), `name_tr` (Turkish name where read on an official list), `instrument` (number and gazette), `kind`, `area`, `institutions` (codes joined by `;`), `parent` (the `id` of the instrument it rests on), `relation`, `effect`, `source_url`, `source_note`, `status` |
 | `institutions.csv` | `code`, `name`, `role`, `legal_basis`, `status` |
 | `coverage.csv` | Every instrument on EPDK's electricity index, EPİAŞ's legislation page and the EPDK procedure pages against the timeline, with a priority (`high`, `medium`, `low`, `history`, `out of scope`) |
