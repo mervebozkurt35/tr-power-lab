@@ -119,6 +119,26 @@ HTML(f'<p class="eyebrow">Latest full month: {mon(cur)} · data to {last:%d %B %
 print(price + "\n\n" + demand + "\n\n" + gen + "\n\n" + markets)
 ```
 
+```{python}
+#| label: month-to-date
+#| output: asis
+# The month in progress, once it has started: its days so far against the same days a year earlier.
+cm = last.replace(day=1)
+if cm > cur and last < cm + pd.offsets.MonthEnd(0):
+    now_ = add_metrics(d.loc[cm:last])
+    then_ = add_metrics(d.loc[cm - pd.DateOffset(years=1): last - pd.DateOffset(years=1)])
+    ldate = f"1 to {last.day} {cm:%B}" if last.day > 1 else f"1 {cm:%B}"
+    if len(now_) and len(then_) == len(now_):
+        pe, pe0 = now_["ptf_eur_mean"].mean(), then_["ptf_eur_mean"].mean()
+        c1, c0 = now_["consumption_mwh"].sum(), then_["consumption_mwh"].sum()
+        rs1 = now_[RENEW].sum().sum() / now_["total_mwh"].sum()
+        rs0 = then_[RENEW].sum().sum() / then_["total_mwh"].sum()
+        print(f"**{cm:%B} so far ({ldate}).** PTF has averaged {pe:.1f} EUR/MWh ({now_['ptf_mean'].mean():,.0f} TL/MWh), "
+              f"{move(pct(pe, pe0))} on the same days of {cm.year - 1}. Consumption is {move(pct(c1, c0))} as reported, "
+              f"and renewables supplied {rs1:.0%} of metered generation against {rs0:.0%}. "
+              f"The month is not complete, so these figures are not comparable with the full-month figures above.")
+```
+
 ## Key figures
 
 ```{python}

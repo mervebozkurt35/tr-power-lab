@@ -202,12 +202,14 @@ txt = (f"In {ucur:%B %Y} the estimate was **{um.loc[ucur, 'gen_twh']:.1f} TWh**,
        f"Over the last 12 complete months it ranged from {u12['share'].min():.0f}% ({u12['share'].idxmin():%B}) "
        f"to {u12['share'].max():.0f}% ({u12['share'].idxmax():%B}): it follows the sun, not demand. ")
 try:
-    cap = pd.read_csv(ROOT / "data/processed/ren_capacity_monthly.csv", parse_dates=["month"]).set_index("month")["solar_unlicensed_mw"].dropna()
-    cm_ = cap.index[cap.index <= ucur].max()
-    cf = um.loc[cm_, "embedded_gen_est_mwh"] / (cap.loc[cm_] * cm_.days_in_month * 24) * 100
-    txt += (f"As a rough check, EPİAŞ's capacity series lists {cap.loc[cm_] / 1000:.1f} GW of unlicensed solar in {cm_:%B %Y} "
-            f"(unit assumed to be MW); the estimate for that month equals {cf:.0f}% of that capacity running all month, "
-            f"which is a plausible figure for solar.")
+    ul = pd.read_csv(ROOT / "data/processed/ul_gen_monthly.csv", parse_dates=["month"]).set_index("month")["ul_total_mwh"]
+    cmp_ = pd.DataFrame({"est": um["embedded_gen_est_mwh"], "ul": ul}).loc["2022-01-01":].dropna()
+    cmp_ = cmp_[cmp_["ul"] > 0]
+    ratio = cmp_["est"] / cmp_["ul"] * 100
+    txt += (f"As a check, EPİAŞ publishes its own series for unlicensed plants (“YEKDEM Lisanssız Üretim Miktarı”, the settlement feed-in values of unlicensed plants within YEKDEM), with a delay of some months. "
+            f"In the {len(ratio)} months from {ratio.index.min():%B %Y} to {ratio.index.max():%B %Y} for which both exist, "
+            f"our estimate is between {ratio.min():.0f}% and {ratio.max():.0f}% of that series (median {ratio.median():.0f}%). "
+            f"The estimate is therefore close to EPİAŞ's own figure, and it is available as soon as consumption and generation are.")
 except Exception:
     pass
 Markdown(txt)
@@ -217,6 +219,6 @@ Markdown(txt)
 
 - **Source:** EPİAŞ Şeffaflık Platformu real-time generation and real-time consumption, through [eptr2](https://github.com/Tideseed/eptr2). Data to `{python} f"{last:%d %B %Y}"`.
 - **Coverage:** generation from January 2014 (EPİAŞ added plants to the series during 2013), consumption from March 2016, cross-border flows from 2018.
-- **Unmetered solar:** real-time generation misses most small, unlicensed plants connected to distribution grids. We estimate their output as consumption minus metered generation minus net imports, from 30 December 2020, when consumption starts to include it. The estimate also picks up any other unmetered generation and measurement differences, so treat it as approximate.
+- **Unmetered solar:** real-time generation misses most small, unlicensed plants connected to distribution grids. We estimate their output as consumption minus metered generation minus net imports, from 30 December 2020, when the data shows consumption starting to include it (the difference is about zero before and 3 to 4% of consumption after). The estimate also picks up any other unmetered generation and measurement differences. It matches EPİAŞ's series "YEKDEM Lisanssız Üretim Miktarı" (call ren-ul-gen, published with a delay) closely, so it is a timely stand-in for that series; the figure itself comes from EPİAŞ's settlement data, not from a measurement of ours. That series is the electricity unlicensed plants feed into the grid. Electricity that a plant's owner uses on site without it reaching the grid is not visible in these data, so we cannot say how large it is.
 - **Revisions:** real-time figures are operational data and are revised; final settlement data arrive weeks later.
 - See the [methodology](../../methodology.qmd) for definitions and data quality notes.

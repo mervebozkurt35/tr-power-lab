@@ -29,7 +29,6 @@ S = cs.SURF[cs.MODE]
 fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
 
 MMBTU_PER_MWH = 3.412142
-EFFICIENCY = 0.50   # illustrative efficiency of a gas-fired power plant (fuel cost only)
 
 # One-day spikes and dips (flagged in the data) are left out of the charts and averages on this page.
 g["usd_mmbtu"] = g["sgp_wavg_usd_mwh"] / MMBTU_PER_MWH
@@ -49,8 +48,7 @@ pm = core_m[["ptf_eur_mean", "gas_mwh", "total_mwh", "hours_with_price"]].copy()
 pm["gas_share"] = pm["gas_mwh"] / pm["total_mwh"] * 100
 both = pd.DataFrame({"gas_eur": monthly["sgp_wavg_eur_mwh"], "ptf_eur": pm["ptf_eur_mean"],
                      "gas_share": pm["gas_share"]}).dropna(subset=["gas_eur", "ptf_eur"])
-both["gas_fuel_cost"] = both["gas_eur"] / EFFICIENCY
-both["margin"] = both["ptf_eur"] - both["gas_fuel_cost"]
+both["ratio"] = both["ptf_eur"] / both["gas_eur"]
 ```
 
 ```{python}
@@ -66,15 +64,15 @@ c30 = core_d.loc[last - pd.Timedelta(days=29): last]
 c30_ly = core_d.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1)]
 share = lambda c: c["gas_mwh"].sum() / c["total_mwh"].sum() * 100
 ptf30 = c30["ptf_eur_mean"].mean()
-cost30 = w30["sgp_wavg_eur_mwh"].mean() / EFFICIENCY
+ptf30_ly = core_d.loc[last - pd.DateOffset(years=1) - pd.Timedelta(days=29): last - pd.DateOffset(years=1), "ptf_eur_mean"].mean()
 chg = (w30["sgp_wavg_eur_mwh"].mean() / w30_ly["sgp_wavg_eur_mwh"].mean() - 1) * 100
 tiles = [
     ("Spot gas price, last 30 days", f"{w30['sgp_wavg_eur_mwh'].mean():.1f} EUR/MWh",
      f"{w30['sgp_wavg'].mean():,.0f} TL per 1,000 Sm³ · {chg:+.0f}% on a year earlier"),
     ("Gas-fired share of generation", f"{share(c30):.0f}%",
      f"last 30 days · {share(c30_ly):.0f}% a year earlier"),
-    ("Gas fuel cost of one MWh of power", f"{cost30:.0f} EUR/MWh",
-     f"at {EFFICIENCY:.0%} efficiency · average PTF was {ptf30:.0f} EUR/MWh"),
+    ("Day-ahead power price (PTF), last 30 days", f"{ptf30:.1f} EUR/MWh",
+     f"{(ptf30 / ptf30_ly - 1) * 100:+.0f}% on a year earlier"),
 ]
 HTML('<div class="tile-grid">' + "".join(
     f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
@@ -151,7 +149,7 @@ Markdown(txt)
 
 ## Gas and power prices
 
-Gas-fired plants often set the price of electricity, so the price of gas is a first guide to the price of power. The dashed line is the fuel cost of producing one megawatt-hour of electricity from spot gas, assuming 50% efficiency: the gas price divided by 0.5. The 50% is an illustrative round figure, not a measured average of the Turkish fleet. The most modern combined-cycle plants are rated higher (a new plant in Kırklareli is [announced](https://www.modernpowersystems.com/news/turkiyes-first-ha-powered-plant-starts-operations/) at above 63% net in combined-cycle mode), and older plants are lower. A plant at 60% would have a fuel cost one sixth below the line. The line also leaves out carbon costs, operating costs and plant start-up costs, so read it as a rough reference for fuel cost, not as a profit measure. When PTF is below the line, a plant running at 50% would not cover its fuel cost at that month's average prices.
+Gas-fired plants often set the price of electricity in Türkiye, so the price of gas is a first guide to the price of power. The chart puts the monthly average day-ahead power price (PTF) next to the spot gas price, both in euros per megawatt-hour. Our data does not show which plant sets the price in each hour, so the chart shows how closely the two move together, not that gas sets the price. A power price above the gas price is expected: a gas plant needs more than one megawatt-hour of gas to produce one megawatt-hour of electricity, and has other costs. PTF is also cut off by the price cap and the floor at zero.
 
 ```{python}
 #| label: gas-power-chart
@@ -159,8 +157,8 @@ b = both.loc["2018-08-01":]
 fig2 = cs.figure(None, "EUR/MWh", height=420)
 cs.add_line(fig2, b.index, b["ptf_eur"], "prices", "ptf", name="PTF (day-ahead power price)",
             unit=" EUR/MWh", hover_fmt=",.1f", end_label=False)
-cs.add_line(fig2, b.index, b["gas_fuel_cost"], "generation", "gas", name="Gas fuel cost of power (50% efficiency)",
-            unit=" EUR/MWh", hover_fmt=",.1f", dash="dash", end_label=False)
+cs.add_line(fig2, b.index, b["gas_eur"], "generation", "gas", name="Spot gas price (GRF)",
+            unit=" EUR/MWh", hover_fmt=",.1f", end_label=False)
 fig2.update_layout(margin=dict(t=40))
 fig2.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
                                               dict(count=5, label="5Y", step="year", stepmode="backward"),
@@ -172,14 +170,17 @@ cs.show(fig2)
 
 ```{python}
 #| label: gas-power-note
-recent = b.loc[b.index >= b.index.max() - pd.DateOffset(months=11)]
-below = (recent["margin"] < 0).sum()
-mn = b["margin"].idxmin()
-txt = (f"In the last twelve complete months PTF was below the gas fuel cost line in {below} of {len(recent)} months. "
-       f"The widest gap was in {mn:%B %Y}: PTF averaged {b.loc[mn, 'ptf_eur']:.0f} EUR/MWh against a fuel cost of "
-       f"{b.loc[mn, 'gas_fuel_cost']:.0f} EUR/MWh. Prices are monthly averages, so individual hours differ a great deal: "
-       "in a month with many zero-price hours the average PTF can sit below the line even though gas plants ran in the "
-       "evening hours when prices were high.")
+r_lvl = b["gas_eur"].corr(b["ptf_eur"])
+r_chg = b["gas_eur"].diff().corr(b["ptf_eur"].diff())
+r_12 = b["gas_eur"].iloc[-12:].corr(b["ptf_eur"].iloc[-12:])
+lo = b["ratio"].iloc[-24:].idxmin()
+txt = (f"From {b.index.min():%B %Y} to {b.index.max():%B %Y} the monthly PTF and the spot gas price have a correlation of {r_lvl:.2f} "
+       f"(1 would mean they always move together); for month-to-month changes it is {r_chg:.2f}. "
+       f"Over the last twelve months alone it is {r_12:.2f}. The long-run link is consistent with gas plants often setting the price, "
+       "and the 2021 to 2023 rise is the clearest case, but the relationship is not stable: "
+       f"in {lo:%B %Y} PTF averaged {b.loc[lo, 'ptf_eur']:.0f} EUR/MWh with gas at {b.loc[lo, 'gas_eur']:.0f} EUR/MWh, "
+       f"when gas supplied {b.loc[lo, 'gas_share']:.0f}% of generation. In months with a lot of hydro, wind and solar the gas price "
+       "tells little about the power price, because other plants set it for many hours.")
 Markdown(txt)
 ```
 

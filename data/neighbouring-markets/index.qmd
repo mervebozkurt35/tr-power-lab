@@ -181,9 +181,15 @@ if bool(((ya["BGTR"] > ya["TRBG"]) & (ya["GRTR"] > ya["TRGR"])).all()):
 Markdown(txt)
 ```
 
+## Other borders
+
+Bulgaria and Greece are not Türkiye's only electricity neighbours. A [CIGRE country presentation](https://www.cigre.org/userfiles/files/Community/National%20Power%20System/Turkey_The_Electri_%20Power_System.pptx.pdf) lists lines to Georgia, Armenia, Azerbaijan (Nakhchivan), Iran, Iraq and Syria as well, and its 2019 flow table shows import and export volumes only for Bulgaria, Greece and Georgia. Exports to Syria have since started: [Enerdata](https://www.enerdata.net/publications/daily-energy-news/turkiye-targets-900-mw-electricity-exports-syria-q1-2026.html) reports 281 MW in 2025 and a target of about 900 MW.
+
+These flows are inside the net import and export chart above, because EPİAŞ reports one total for all borders. They are missing from the capacity chart and from any breakdown by country, because the capacity series we use comes through a tool (eptr2) that only accepts the Bulgarian and Greek directions, and we have not yet found a daily source by country for the other borders. We are checking whether the EPİAŞ platform lists more directions; if it does, they will be added here.
+
 ## Notes
 
-- **Source:** EPİAŞ Şeffaflık Platformu, through [eptr2](https://github.com/Tideseed/eptr2). Net imports are the total across all borders ("net import" in the real-time series). Capacity is the interconnection line capacity published for each direction.
+- **Source:** EPİAŞ Şeffaflık Platformu, through [eptr2](https://github.com/Tideseed/eptr2). Net imports are the total across all borders ("net import" in the real-time series). Capacity is the series "Hat Kapasiteleri" (Interconnection Line Capacities), which EPİAŞ describes as showing total capacity and available capacity for the interconnections.
 - **Definition of the capacity series:** the platform publishes a total and an available capacity. The available figure has been zero since 2024, so we show only the total. Whether the total is the physical limit of the line, the capacity offered in auctions or the capacity allocated is still to be confirmed against EPİAŞ's documentation; we therefore do not compute how much of it is used.
 - **Not on this page yet:** flows and prices border by border, which need data from ENTSO-E (the European network of transmission operators), and a comparison of Turkish prices with Greek and Bulgarian ones.
 - See the [methodology](../../methodology.qmd) for definitions.
