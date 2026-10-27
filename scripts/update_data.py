@@ -5,14 +5,22 @@ The full downloaders (fetch_core.py, fetch_extra.py) keep every raw hourly file 
 processed files from them. The raw files are not in the repository, so a scheduled job cannot do that. This
 script does the daily work from the processed files alone:
 
-  1. download only the last N months (default 2) plus one earlier month of context into a temporary folder,
+  1. download only the last few months (plus one earlier month of context) into a temporary folder,
   2. build the processed files from that short window with the same code as the full run,
   3. replace the matching rows in data/processed/*.csv and append the new days; older rows are never touched,
   4. check the result and write data/processed/update_status.json (what the pages show as "data through").
 
-Why months and not just "yesterday": EPİAŞ revises recent values (PTF objections, real-time generation and
-consumption corrections, the gas day-after price), so the whole current and previous month are refreshed every
-day. The extra month before them is only context for features that look at neighbouring days; it is not written.
+How deep each run goes (--mode, chosen from the date when it is "auto"):
+  daily    every day except Mondays and the 1st: adds the new day (and any days missing since the last run)
+  weekly   Mondays: rewrites the last 7 days, the week that just ended
+  monthly  the 1st: rewrites the last 2 months (the previous month is final by then)
+  deep     by hand: the last 6 months
+Mondays and the 1st also record which stored values changed (old and new value, written to _digest/changes.csv and summarised
+in update_status.json for the e-mail).
+Downloads are always whole months, because the monthly files are built from a complete month; the month before
+the first rewritten month is only context for features that look at neighbouring days and is not written.
+Slow series have their own look-back: unlicensed generation arrives months late, and an outage gets its end date later.
+If the data is further behind than the mode reaches (for example after a pause), the window widens by itself.
 
 A file is replaced only when its checks pass. If a series fails, the old rows stay, the problem is listed in
 update_status.json and in the job summary, and the script exits with an error so GitHub sends an email.
@@ -21,8 +29,8 @@ Reservoirs: EPİAŞ returns only the latest day, so the snapshot is added to res
 This is the only copy of that history. It runs first, before anything that could fail.
 
 Usage (credentials come from EPTR_USERNAME and EPTR_PASSWORD)
-  python scripts/update_data.py                    # normal daily run
-  python scripts/update_data.py --deep             # refresh the last 6 months (monthly run)
+  python scripts/update_data.py                    # picks the depth from the date (see --mode)
+  python scripts/update_data.py --mode weekly      # daily, weekly, monthly or deep (6 months)
   python scripts/update_data.py --target DIR       # write to another folder than data/processed (for tests)
 """
 
@@ -84,6 +92,7 @@ MAX_LAG = {"core_daily.csv": 1, "gas_daily.csv": 3, "balancing_daily.csv": 3, "w
 FATAL_LAG = {"core_daily.csv"}  # a lag beyond MAX_LAG is an error, not a warning
 
 status: dict = {"files": {}, "warnings": [], "errors": []}
+CHANGES: list[pd.DataFrame] = []     # every revised value of this run (file, key, column, old, new)
 
 
 def warn(msg: str) -> None:
@@ -193,6 +202,49 @@ def log_revisions(target: Path, name: str, end: date, ages: pd.Series) -> None:
     status["files"][name]["revised_by_age"] = {k: row[k] for k, _, _ in REVISION_BUCKETS}
 
 
+def record_changes(name: str, keys: list, both: pd.DataFrame, cols: list, end: date):
+    """Remember which values were revised: the full list goes to _digest/changes.csv, a short summary into the status.
+    A month that is still in progress changes every day because days are added to it, so it is not a revision."""
+    if keys == ["month"]:
+        done = end.strftime("%Y-%m") if (end + timedelta(days=1)).day == 1 else (end.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        both = both[both["month"] <= done]
+    parts = []
+    for c in cols:
+        o, n = both[f"{c}_old"], both[f"{c}_new"]
+        m = o != n
+        if not m.any():
+            continue
+        part = both.loc[m, keys].copy()
+        part.insert(0, "file", name)
+        part["column"], part["old"], part["new"] = c, o[m], n[m]
+        x, y = pd.to_numeric(o[m], errors="coerce"), pd.to_numeric(n[m], errors="coerce")
+        part["change_pct"] = ((y - x) / x.abs().where(x.abs() > 0) * 100).round(2)
+        parts.append(part)
+    if not parts:
+        return None
+    det = pd.concat(parts, ignore_index=True)
+    det["key"] = det[keys].agg("|".join, axis=1)
+    by_col = det.groupby("column").agg(values=("key", "size"), days=("key", "nunique"),
+                                       max_abs_pct=("change_pct", lambda v: float(v.abs().max()) if v.notna().any() else None))
+    summary = {
+        "values": int(len(det)), "keys": int(det["key"].nunique()),
+        "first": str(det["key"].min()), "last": str(det["key"].max()),
+        "by_column": {c: {"values": int(r["values"]), "days": int(r["days"]),
+                          "max_abs_pct": None if pd.isna(r["max_abs_pct"]) else round(float(r["max_abs_pct"]), 1)}
+                      for c, r in by_col.sort_values("values", ascending=False).head(8).iterrows()},
+    }
+    return det[["file", "key", "column", "old", "new", "change_pct"]], summary
+
+
+def write_changes(end: date) -> None:
+    """Write the full list of revised values for this run next to the digest (not committed, kept as a build artifact)."""
+    if not CHANGES:
+        return
+    out = Path(__file__).resolve().parent.parent / "_digest"
+    out.mkdir(exist_ok=True)
+    pd.concat(CHANGES, ignore_index=True).to_csv(out / "changes.csv", index=False)
+
+
 def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: date) -> bool:
     """Replace the rows of `name` from window_from on with the new build, keep everything older as it is."""
     group, tcol, keys, allow_missing = FILES[name]
@@ -216,6 +268,7 @@ def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: d
         warn(f"{name}: no new rows in the window")
         return False
 
+    pending = None
     if old is None:
         merged = new
         added, changed = len(new), 0
@@ -269,6 +322,8 @@ def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: d
                 for c in cols:
                     diff |= both[f"{c}_old"] != both[f"{c}_new"]
                 changed = int(diff.sum())
+                if changed:
+                    pending = record_changes(name, keys, both, cols, end)
                 if tcol == "date" and changed:
                     rev_ages = (pd.Timestamp(end) - pd.to_datetime(both.loc[diff, tcol])).dt.days
                 if name == "core_daily.csv" and changed:
@@ -297,6 +352,9 @@ def merge_file(name: str, target: Path, tmp_out: Path, window_from: date, end: d
     tmp = old_path.with_suffix(".csv.tmp")
     merged.to_csv(tmp, index=False)
     os.replace(tmp, old_path)
+    if pending:
+        CHANGES.append(pending[0])
+        info["revisions"] = pending[1]
     if rev_ages is not None:
         log_revisions(target, name, end, rev_ages)
     last = merged[tcol].max()
@@ -369,8 +427,10 @@ def step_summary(end: date) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--refresh-months", type=int, default=2, help="months rewritten every run (current and previous)")
-    ap.add_argument("--deep", action="store_true", help="refresh the last 6 months instead")
+    ap.add_argument("--mode", choices=["auto", "daily", "weekly", "monthly", "deep"], default="auto",
+                    help="how far back to rewrite: daily = add the new day, weekly = last 7 days, monthly = last 2 months, "
+                         "deep = last 6 months; auto picks monthly on the 1st, weekly on Mondays, daily otherwise")
+    ap.add_argument("--deep", action="store_true", help="same as --mode deep")
     ap.add_argument("--end", default=None, help="last day to fetch, default yesterday (Istanbul)")
     ap.add_argument("--target", default=str(REAL_OUT), help="folder with the processed files to update")
     ap.add_argument("--work", default=None, help="folder for the temporary raw files (default: a new temp folder)")
@@ -378,15 +438,25 @@ def main() -> int:
 
     target = Path(a.target)
     end = date.fromisoformat(a.end) if a.end else pd.Timestamp.now(tz=TZ).date() - timedelta(days=1)
-    n = 6 if a.deep else a.refresh_months
-    # a gap since the last successful run widens the window so no day is skipped
+    this_month = end.replace(day=1)
+    today = pd.Timestamp.now(tz=TZ).date()
+    mode = "deep" if a.deep else a.mode
+    if mode == "auto":
+        mode = "monthly" if today.day == 1 else ("weekly" if today.weekday() == 0 else "daily")
+    # rows from `window_from` on are replaced; older rows are never touched. EPİAŞ is downloaded in whole months
+    # (the monthly files are built from a complete month), so the download always starts at the first of the
+    # month before the month of window_from.
+    rewrite_from = {"daily": end, "weekly": end - timedelta(days=6),
+                    "monthly": add_months(this_month, -1), "deep": add_months(this_month, -5)}[mode]
+    # a gap since the last successful run widens the window so no day is skipped: start at the first missing day
     last_core = last_day_in(target / "core_daily.csv", "date")
     if last_core is not None:
-        n = max(n, months_between(last_core.replace(day=1), end.replace(day=1)) + 1)
-    this_month = end.replace(day=1)
-    window_from = add_months(this_month, -(n - 1))
-    ctx_start = add_months(window_from, -1)
-    print(f"Window: rewrite from {window_from}, context from {ctx_start}, to {end}  ({n} months)")
+        rewrite_from = min(rewrite_from, last_core + timedelta(days=1))
+    window_from = rewrite_from
+    ctx_start = add_months(window_from.replace(day=1), -1)
+    dl_from = window_from.replace(day=1)          # first month downloaded for the series that need no context
+    print(f"Mode: {mode}. Rewrite from {window_from}, download from {ctx_start}, to {end}")
+    status["mode"] = mode
 
     work = Path(a.work) if a.work else Path(tempfile.mkdtemp(prefix="trpl_"))
     raw, out = work / "raw", work / "out"
@@ -462,10 +532,12 @@ def main() -> int:
     series_from = {}
     for group, names in GROUP_SERIES.items():
         for s in names:
-            series_from[s] = window_from
-    series_from["ul_gen"] = add_months(floor_end, -(11 if a.deep else 7))   # published months late
-    series_from["line_events"] = add_months(floor_end, -(23 if a.deep else 11))   # an open outage gets its end later
-    series_from["ren_capacity"] = add_months(floor_end, -(5 if a.deep else 2))
+            series_from[s] = dl_from
+    # slow series: published months late (unlicensed generation) or filled in later (the end of an outage)
+    back = {"daily": (2, 2, 1), "weekly": (7, 11, 2), "monthly": (11, 11, 2), "deep": (11, 23, 5)}[mode]
+    series_from["ul_gen"] = add_months(floor_end, -back[0])
+    series_from["line_events"] = add_months(floor_end, -back[1])
+    series_from["ren_capacity"] = add_months(floor_end, -back[2])
     # context month for the series that look at neighbouring days
     for s in GROUP_SERIES["gas"] + ["wind", "load_plan", "bpm_up", "bpm_down"]:
         series_from[s] = ctx_start
@@ -508,6 +580,7 @@ def main() -> int:
             d = last_day_in(target / name, tcol)
             if d is not None:
                 through[name] = d.isoformat() if tcol == "date" else d.strftime("%Y-%m")
+    write_changes(end)
     write_status(target, end, through)
     step_summary(end)
     print("Errors:", len(status["errors"]), " warnings:", len(status["warnings"]))

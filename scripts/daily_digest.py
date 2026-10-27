@@ -160,6 +160,33 @@ def health_lines() -> tuple[list[str], list[str], list[str], bool]:
     return files, st.get("warnings", []), st.get("errors", []), bool(st.get("ok", True))
 
 
+def revision_report() -> tuple[str, list[str]] | None:
+    """The report of a Monday or first-of-month run: which already stored values changed when the period was downloaded again."""
+    p = PROC / "update_status.json"
+    if not p.exists():
+        return None
+    st = json.loads(p.read_text(encoding="utf-8"))
+    mode = st.get("mode", "")
+    label = {"weekly": "last 7 days re-downloaded", "monthly": "last 2 months re-downloaded", "deep": "last 6 months re-downloaded"}.get(mode)
+    if not label:
+        return None
+    lines = []
+    for n, i in st.get("files", {}).items():
+        r = i.get("revisions")
+        if not r:
+            continue
+        span = r["first"] if r["first"] == r["last"] else f"{r['first']} to {r['last']}"
+        lines.append(f"{n}: {r['values']} value(s) on {r['keys']} row(s), {span}")
+        for c, d in list(r["by_column"].items())[:5]:
+            big = f", largest change {d['max_abs_pct']:g}%" if d.get("max_abs_pct") is not None else ""
+            lines.append(f"    {c}: {d['values']} value(s) on {d['days']} row(s){big}")
+    if not lines:
+        lines = ["No stored value changed. The re-downloaded period matches what was already in the data."]
+    else:
+        lines.append("The full list (old and new value of every change) is in the build artifact of this run, file changes.csv.")
+    return f"Changes in the re-downloaded period ({label})", lines
+
+
 def render(sections, day_text, trial, deploy_note, update_outcome="", day=None) -> tuple[str, str, str]:
     files, warns, errs, ok = health_lines()
     errs = list(errs)
@@ -202,6 +229,9 @@ def render(sections, day_text, trial, deploy_note, update_outcome="", day=None) 
             extra = f"   ({', '.join(parts)})" if parts else ""
             txt.append(f"  {label}: {val}{extra}")
         txt.append("")
+    rev = revision_report()
+    if rev:
+        txt += [rev[0].upper()] + [f"  {x}" for x in rev[1]] + [""]
     if files:
         txt += ["FILES CHANGED IN THIS RUN"] + [f"  {f}" for f in files] + [""]
     for title, items in (("ERRORS", errs), ("WARNINGS", warns)):
@@ -222,6 +252,9 @@ def render(sections, day_text, trial, deploy_note, update_outcome="", day=None) 
             cmp_ = f'<span style="color:#777">{" · ".join(parts)}</span>' if parts else ""
             h.append(f"<tr><td {td}>{html.escape(label)}</td><td {td} align=\"right\"><b>{html.escape(val)}</b></td><td {td}>{cmp_}</td></tr>")
         h.append("</table>")
+    if rev:
+        h.append(f'<h3 style="margin:16px 0 4px;font-size:15px">{html.escape(rev[0])}</h3><ul style="margin:0;padding-left:18px;list-style:none">'
+                 + "".join(f'<li style="white-space:pre-wrap">{html.escape(x)}</li>' for x in rev[1]) + "</ul>")
     if files:
         h.append('<h3 style="margin:16px 0 4px;font-size:15px">Files changed in this run</h3><ul style="margin:0;padding-left:18px">'
                  + "".join(f"<li>{html.escape(f)}</li>" for f in files) + "</ul>")
