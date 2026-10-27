@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pages            # never run two publishes at once
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
