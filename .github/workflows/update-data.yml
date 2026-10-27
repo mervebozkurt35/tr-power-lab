@@ -64,10 +64,11 @@ jobs:
         if: always()
         env:
           TRIAL: ${{ github.event_name == 'workflow_dispatch' && !inputs.write }}
+          UPDATE_OUTCOME: ${{ steps.update.outcome }}
         run: |
           FLAG=""
           if [ "$TRIAL" = "true" ]; then FLAG="--trial"; fi
-          python scripts/daily_digest.py --out _digest $FLAG
+          python scripts/daily_digest.py --out _digest --update-outcome "$UPDATE_OUTCOME" $FLAG
           { echo "## Overview of the latest day"; echo; echo '```'; cat _digest/digest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the overview for the mail
