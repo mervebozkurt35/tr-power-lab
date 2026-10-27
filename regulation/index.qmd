@@ -1,6 +1,6 @@
 ---
 title: "Market timeline"
-subtitle: "The laws, rules and market launches that shaped the Turkish electricity market"
+subtitle: "What changed the structure of the Turkish electricity market, from a state monopoly to storage and remote control"
 execute:
   echo: false
   freeze: false
@@ -22,18 +22,16 @@ import regulation_view as rv
 
 ev, inst, log = rv.load()
 ms = rv.load_milestones()
+S = rv.SECTIONS
 ```
 
 ```{python}
 #| label: intro
 Markdown(f"""
-{len(ms)} changes that mattered for how prices form, who can operate and what kinds of business are allowed, from the first market law in 2001 to 2026.
-Each card says what changed in a few sentences and names the legal instruments behind it, with what each rests on and a link to the page it was read on.
-The colour is the type of reform. Cards marked **draft** rest on the EPİAŞ handbook, a news report or inference; the others were read on a page that
-reproduces the official text. Where a sentence comes from the handbook or the press, the card says so.
-
-The [instrument index](instruments.qmd) lists every instrument in one compact table, [institutions](institutions.qmd) says who does what, and
-[method](method.qmd) explains how this was researched and what was not read.
+{len(ms)} changes that shaped how the Turkish power market works today, in five sections: how the market was opened up, how power is traded,
+who may generate and how, how the grid is run, and the transition to renewables, storage and electric vehicles.
+Laws and regulations appear only as small tags; each card says what changed or what the rule was for, and where it was read.
+The [method page](method.qmd) explains the source labels and what was not read, and [institutions](institutions.qmd) says who does what.
 """)
 ```
 
@@ -44,8 +42,53 @@ Check the official text (Resmî Gazete, mevzuat.gov.tr, EPDK) before relying on 
 :::
 
 ```{python}
-#| label: timeline
-HTML(rv.vertical_timeline(ms, ev))
+#| label: side
+HTML(rv.side_block(ms))
+```
+
+## Liberalisation of Turkish power {#lib}
+
+From one state monopoly to separate segments, a regulator, consumer choice and a privatised distribution grid.
+
+```{python}
+#| label: lib
+HTML(rv.section_html(ms, S[0]))
+```
+
+## Power market {#market}
+
+How electricity is priced, traded and settled, from the first balancing rules to EPİAŞ's markets.
+
+```{python}
+#| label: market
+HTML(rv.section_html(ms, S[1]))
+```
+
+## Generation {#generation}
+
+Who may build a plant and on what terms: renewable support, pre-licences and unlicensed generation.
+
+```{python}
+#| label: generation
+HTML(rv.section_html(ms, S[2]))
+```
+
+## Grid and system operation {#grid}
+
+The transmission company, the link to the European grid, metering, and how the system operator reaches plants and storage.
+
+```{python}
+#| label: grid
+HTML(rv.section_html(ms, S[3]))
+```
+
+## Transition {#transition}
+
+Renewable reforms, storage, aggregation, certificates, carbon pricing and electric vehicles.
+
+```{python}
+#| label: transition
+HTML(rv.section_html(ms, S[4]))
 ```
 
 ## Download
@@ -59,5 +102,6 @@ HTML(cs.download_link(ms, "tr_power_lab_market_milestones.csv", "Milestones (CSV
      + cs.download_link(log, "tr_power_lab_regulation_research_log.csv", "Research log (CSV)"))
 ```
 
-In the instruments file, `parent` links each instrument to the one it rests on. `status` is `verified` or `draft`.
+In the milestones file, `section` is one of the five sections, `topics` the filter topics, `tags` the legal tags and `instruments` the ids of
+the underlying rows in the instruments file, where `parent` links each instrument to the one it rests on and `status` is `verified` or `draft`.
 Licence: CC BY 4.0, with the original texts remaining the property of their publishers.

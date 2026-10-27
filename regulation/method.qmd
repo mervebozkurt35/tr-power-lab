@@ -40,6 +40,16 @@ listed at the end of the log below.
    `draft` means the entry rests on the handbook, a news item or inference, or the text itself was not read.
 4. **Keep the doubt.** Where a source disagreed with another, or a link between two instruments was inferred, the source note says so.
 
+## Reading the source labels on the cards
+
+Each card ends with the kind of source it was written from, linked where a page was read.
+
+- **Law text, regulation text, consolidated text, decision text:** read in a reproduction of the official text, or in a consolidated text supplied for this project.
+- **EPİAŞ market handbook:** the handbook built from the EPİAŞ training series. Dates and descriptions that come only from it were not checked against the gazette.
+- **News report, law-firm note, trade press, legal commentary:** secondary sources. Where a number comes only from these, the card says "press reports" or "according to".
+- **Strategy paper, Ministry copy:** the paper is linked but was not opened here; its content is as summarised in a TEPAV note.
+- The cards before 2001 rest on one law-firm sector report and should be checked against a history of the state electricity authority.
+
 ## What the limits are
 
 - Most dates are publication dates in the Resmî Gazete as shown on the reproduction; where only the adoption date was read,
@@ -59,9 +69,13 @@ HTML(rv.log_table(log) + cs.download_link(log, "tr_power_lab_regulation_research
 
 ## Still to read
 
-- Amendments to the Balancing and Settlement Regulation of 2024 and 2025 (the January and December 2025 entries are drafts)
+- Board decisions 14907 to 14913 of the 19 October 2026 package (deviation coefficients, unlicensed connection agreement, offer price reporting, imbalance value, storage licence wording, reactive power agreement); the eight regulation amendments were read, so only the decisions rest on press reports
+- Board decision 14030 (11 December 2025) with the imbalance coefficient values, and the December 2024 DUY amendment (known only through the consolidated text)
 - Amendments to the Unlicensed Generation Regulation of 2024, November 2025 and April 2026
 - The December 2025 YEK Regulation amendment and the 2024 Licence and Grid Regulation amendments
-- Laws 3096 and 4283 (build-operate models), the Energy Efficiency Law and the Natural Gas Market Law
+- Laws 3096 and 4283 (build-operate models), the Energy Efficiency Law and the text of the Natural Gas Market Law (4646)
+- The 2004 strategy paper itself (the Ministry copy), the 2011 Unlicensed Generation Regulation and the original 2005 wording of the renewable support price
+- Why market operation was separated from TEİAŞ in 2015, and the date TEİAŞ's transmission licence was issued: no source found
+- Installed capacity by year and unlicensed capacity by year: left out until they can be matched with the data on this site
 - The TETAŞ and EÜAŞ merger, the 2019 Transparency and market operation changes and the Transparency Platform regulation
 - The Presidential decision on the support deadline (number), and the gazette text of the free consumer limit decisions

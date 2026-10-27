@@ -38,3 +38,12 @@ table { font-variant-numeric: tabular-nums; }
   background-color: #152028 !important; color: $body-color !important; border-color: #25333C !important;
 }
 .form-control::placeholder { color: $secondary; }
+
+// Navbar dropdown: readable text on hover and keyboard focus
+.navbar .dropdown-menu { background-color: #0A1216; border: 1px solid #25333C; }
+.navbar .dropdown-menu .dropdown-item { color: #E6EEF1; }
+.navbar .dropdown-menu .dropdown-item:hover,
+.navbar .dropdown-menu .dropdown-item:focus,
+.navbar .dropdown-menu .dropdown-item.active {
+  background-color: #1B2A33 !important; color: #FFFFFF !important; text-decoration: underline; text-underline-offset: .25em;
+}

@@ -1,6 +1,7 @@
 ---
 title: "Instrument index"
 subtitle: "Every law, regulation and decision in the timeline, one line each"
+draft: true
 execute:
   echo: false
   freeze: false

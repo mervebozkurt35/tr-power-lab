@@ -13,7 +13,7 @@ Court decision,"Anayasa Mahkemesi Kararı, RG 28433 (6 Oct 2012), 4628 sayılı 
 Court decision,4628 Sayılı Kanunda Bazı Maddelerin Yürütmesinin Durdurulması,EPDK index,,medium,Stay of execution
 Regulation,Enerji Piyasası Bildirim Yönetmeliği,EPDK index,,low,Notification obligations; 28 amendment decisions listed by EPDK
 Regulation,Elektrik Piyasası Talep Tahminleri Yönetmeliği,EPDK index,talep-2016,,
-Regulation,Elektrik Piyasası Kapasite Mekanizması Yönetmeliği,EPDK index,kapasite-2018,,Later versions dated from EPDK's table; content not read
+Regulation,Elektrik Piyasası Kapasite Mekanizması Yönetmeliği,EPDK index,kapasite-2021,,"Current text read (RG 31693, 2021); 2018 text repealed"
 Regulation,Elektrik Piyasası Yan Hizmetler Yönetmeliği,EPDK index; EPİAŞ page,yan-2017,,
 Regulation,Elektrik Piyasası Tarifeler Yönetmeliği,EPDK index; EPİAŞ page,reg-tarifeler-2020,,
 Regulation,Elektrik Piyasası Bağlantı ve Sistem Kullanım Yönetmeliği,EPDK index; EPİAŞ page,,high,Connection rules; not read
@@ -22,16 +22,16 @@ Regulation,Elektrik Piyasası Dengeleme ve Uzlaştırma Yönetmeliği,EPDK index
 Regulation,Elektrik Şebeke Yönetmeliği,EPDK index; EPİAŞ page,reg-sebeke-2014,,
 Regulation,Elektrik Piyasası İthalat ve İhracat Yönetmeliği,EPDK index; EPİAŞ page,reg-ithalat-2014,,
 Regulation,Enerji Piyasaları İşletme A.Ş. Teşkilat Yapısı ve Çalışma Esasları Hakkında Yönetmelik,EPDK index,epias-reg-2015,,
-Regulation,Elektrik Piyasasında Dağıtım ve Tedarik Lisanslarına İlişkin Tedbirler Yönetmeliği,EPDK index,,high,Not read
+Regulation,Elektrik Piyasasında Dağıtım ve Tedarik Lisanslarına İlişkin Tedbirler Yönetmeliği,EPDK index,,medium,"Text read (Art. 16 of Law 6446 measures when a distribution or supply licence ends); no gazette date in the supplied text, so not on the timeline"
 Regulation,Dağıtım Sistemindeki Kayıpların Azaltılmasına Dair Tedbirler Yönetmeliği,EPDK index,,medium,Loss and theft; affects tariffs
 Regulation,Yenilenebilir Enerji Kaynaklarının Belgelendirilmesi ve Desteklenmesine İlişkin Yönetmelik,EPDK index; EPİAŞ page,reg-yek-2013,,
 Regulation,Elektrik Piyasası Tadillere ve İletim Faaliyeti ile Vazgeçilen Faaliyetlerin Devrine İlişkin Yönetmelik,EPDK index,,high,Transfers of activities
 Regulation,Elektrik Piyasasında Yapılacak Denetimler ile Ön Araştırma ve Soruşturmalarda Takip Edilecek Usul ve Esaslar Hakkında Yönetmelik,EPDK index,,low,Enforcement procedure
 Regulation,Elektrik Piyasasında Faaliyet Gösteren Üretim ve Dağıtım Şirketlerinin Lisansları Kapsamındaki Faaliyetlerinin İncelenmesine ve Denetlenmesine İlişkin Yönetmelik,EPDK index,,low,"Annulled by the Council of State on 13 Jun 2017 (2017/1932), per EPDK"
-Regulation,Elektrik Piyasası Tüketici Hizmetleri Yönetmeliği,EPDK index; EPİAŞ page,,medium,Retail
+Regulation,Elektrik Piyasası Tüketici Hizmetleri Yönetmeliği,EPDK index; EPİAŞ page,tuketici-2018,,Read
 Regulation,Elektrik Piyasasında Lisanssız Elektrik Üretim Yönetmeliği,EPDK index; EPİAŞ page,reg-lisanssiz-2019,,
 Regulation,Enerji Sektöründe Kullanılan Endüstriyel Kontrol Sistemlerinde Bilişim Güvenliği Yönetmeliği,EPDK index,,low,Cybersecurity
-Regulation,Rüzgâr veya Güneş Enerjisine Dayalı Üretim Tesisi Kurmak Üzere Yapılan Önlisans Başvurularına İlişkin Yarışma Yönetmeliği,EPDK index; EPİAŞ page,,high,Two generations of it exist (one repealed)
+Regulation,Rüzgâr veya Güneş Enerjisine Dayalı Üretim Tesisi Kurmak Üzere Yapılan Önlisans Başvurularına İlişkin Yarışma Yönetmeliği,EPDK index; EPİAŞ page,yarisma-2017,,Current text read; an older generation is listed as repealed
 Regulation,Elektrik Piyasasında Yenilenebilir Enerji Kaynak Garanti Belgesi Yönetmeliği,EPDK index; EPİAŞ page,reg-yekg-2020,,
 Regulation,Elektrik Dağıtım Şirketlerinin Satın Alma ve Satış İşlemleri Uygulama Yönetmeliği,EPDK index,,low,
 Regulation,Elektrik Piyasasında Dağıtım ve Perakende Satış Faaliyetlerine İlişkin Kalite Yönetmeliği,EPDK index,,medium,Service quality
@@ -39,7 +39,7 @@ Regulation,Elektrik Piyasasında Depolama Faaliyetleri Yönetmeliği,EPDK index;
 Regulation,Elektrik Dağıtım Sistemi Yönetmeliği,EPDK index,,medium,
 Regulation,Organize Sanayi Bölgelerinin ve Endüstri Bölgelerinin Elektrik Piyasası Faaliyetlerine İlişkin Yönetmelik,EPDK index,,high,Industrial zones as participants
 Regulation,Elektrik Piyasasında Toplayıcılık Faaliyeti Yönetmeliği,EPDK index; EPİAŞ page,reg-toplayici-2024,,
-Regulation,Elektrik Piyasası Ölçüm Sistemleri Yönetmeliği,EPDK index,,medium,Metering
+Regulation,Elektrik Piyasası Ölçüm Sistemleri Yönetmeliği,EPDK index,olcum-2023,,Read
 Regulation,Enerji Piyasalarında ve Çevresel Piyasalarda Şeffaflığa ve Piyasa Bozucu Davranışlara İlişkin Yönetmelik,EPDK index; EPİAŞ page; Enerji Dönüşümü page,,high,Market manipulation and transparency; links to Law 7552
 Regulation,Şarj Hizmeti Yönetmeliği,EPİAŞ page; Enerji Dönüşümü page,reg-sarj-2022,,Not on EPDK's electricity list
 Regulation,Elektrik Üretim ve Elektrik Depolama Tesisleri Kabul Yönetmeliği,EPİAŞ page,,high,Appears only on EPİAŞ's page; issuer and date not read
@@ -67,7 +67,7 @@ Procedure or board decision,Organize Toptan Elektrik Piyasalarında Şeffaflığ
 Procedure or board decision,Şeffaflık Platformunda Yayımlanacak Veriler,EPİAŞ page,,medium,Data list of the Transparency Platform
 Procedure or board decision,İthalat ve İhracata İlişkin Dengeleme ve Uzlaştırma Usul ve Esasları,EPDK index,,medium,Under the DUY
 Procedure or board decision,Kayıp Katsayıları Hesaplama Metodolojisine İlişkin Usul ve Esaslar,EPDK index,,medium,Under the DUY
-Procedure or board decision,Lisanssız Elektrik Üretim Tesisleri ve İlişkili Olduğu Tüketim Tesislerinin Mahsuplaşma İşlemlerine İlişkin Usul ve Esaslar,EPİAŞ page,,medium,
+Procedure or board decision,Lisanssız Elektrik Üretim Tesisleri ve İlişkili Olduğu Tüketim Tesislerinin Mahsuplaşma İşlemlerine İlişkin Usul ve Esaslar,EPİAŞ page,lisanssiz-mahsup-2026,,"Board decision 14531, RG 33244 (5 May 2026), read from a scanned gazette page"
 Procedure or board decision,Lisanssız Üretim Kapsamında Yapılmayan Ödemelere İlişkin Usul ve Esaslar,EPİAŞ page,,medium,
 Procedure or board decision,Talep Tarafı Katılımı Hizmeti Usul ve Esasları,EPDK index,,high,Demand side participation
 Procedure or board decision,"Kapasite Mekanizması ilişkili Kurul Kararları 10792-1, 10792-2, 10723",EPDK index,,medium,Related to the Capacity Mechanism Regulation
@@ -106,6 +106,7 @@ Regulation (in timeline only),First Ancillary Services Regulation,other sources,
 Law (in timeline only),Law 6094 amends the renewable energy law (YEKDEM period),other sources,law-6094,,Not on EPDK's or EPİAŞ's lists; status verified
 Law (in timeline only),Law 6719 introduces renewable energy resource areas (YEKA) into the market law,other sources,law-6719,,Not on EPDK's or EPİAŞ's lists; status verified
 Regulation (in timeline only),YEKA Regulation,other sources,reg-yeka-2016,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),"Capacity Mechanism Regulation (2018, repealed in 2021)",other sources,kapasite-2018,,Not on EPDK's or EPİAŞ's lists; status verified
 Law (in timeline only),Law 7103 lets licence-exempt storage and demand side participation into the market law,other sources,law-7103,,Not on EPDK's or EPİAŞ's lists; status verified
 Law (in timeline only),Law 7162 adds forward physical delivery markets and EPİAŞ risk management,other sources,law-7162,,Not on EPDK's or EPİAŞ's lists; status verified
 Law (in timeline only),Law 7164 amends licensed renewable rules,other sources,law-7164,,Not on EPDK's or EPİAŞ's lists; status verified
@@ -121,11 +122,21 @@ Law (in timeline only),Law 7429 amends the market law; aggregation enters the la
 Regulation (in timeline only),Unlicensed Generation Regulation amendment on mixed sites and single acceptance,other sources,reg-lisanssiz-2023,,Not on EPDK's or EPİAŞ's lists; status verified
 Regulation (in timeline only),DUY amendment: new intraday bid types and matching rules from 1 Jan 2024,other sources,gip-2024,,Not on EPDK's or EPİAŞ's lists; status verified
 EPDK decision (in timeline only),Free consumer limit cut to 750 kWh for 2025,other sources,free-2025,,Not on EPDK's or EPİAŞ's lists; status draft
-Regulation (in timeline only),DUY amendment lets the board set the imbalance coefficients k and l,other sources,duy-2025-01,,Not on EPDK's or EPİAŞ's lists; status draft
+Regulation (in timeline only),"DUY amendment: 15-minute settlement period for balancing power, storage and unlicensed rules",other sources,duy-2025-01,,Not on EPDK's or EPİAŞ's lists; status verified
 Regulation (in timeline only),"Storage amendments: availability rule, new licence conditions",other sources,reg-depolama-2025,,Not on EPDK's or EPİAŞ's lists; status verified
+Law (in timeline only),Law 7554 extends land-fee discounts for plants using certain mined fuels,other sources,law-7554,,Not on EPDK's or EPİAŞ's lists; status verified
 EPDK decision (in timeline only),Free consumer limit cut to 500 kWh for 2026,other sources,free-2026,,Not on EPDK's or EPİAŞ's lists; status verified
-Regulation (in timeline only),DUY amendment rewrites the imbalance price paragraphs; coefficients depend on system direction from 2026,other sources,duy-2025-12,,Not on EPDK's or EPİAŞ's lists; status draft
+Regulation (in timeline only),DUY amendment: imbalance coefficients depend on system direction from 2026,other sources,duy-2025-12,,Not on EPDK's or EPİAŞ's lists; status verified
 Regulation (in timeline only),Storage amendment: storage at unlicensed plants and rules for hybrid plants,other sources,reg-depolama-2025-12,,Not on EPDK's or EPİAŞ's lists; status verified
 Regulation (in timeline only),YEK Regulation amendment on who is eligible and how storage-linked energy is treated,other sources,reg-yek-2026,,Not on EPDK's or EPİAŞ's lists; status draft
 Regulation (in timeline only),"Ancillary Services amendment: imbalance refund for secondary frequency control, aggregators",other sources,yan-2025-12,,Not on EPDK's or EPİAŞ's lists; status verified
 Tariff (in timeline only),Retail electricity tariffs raised: residential 25%,other sources,tariff-2026,,Not on EPDK's or EPİAŞ's lists; status draft
+Regulation (in timeline only),Ancillary Services amendment: demand-side participation rules for aggregators,other sources,ancillary-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),"Connection and System Usage amendment: storage above contract power, collateral, leaving the distribution system",other sources,baglanti-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+EPDK decision (in timeline only),"Seven EPDK board decisions (14907 to 14913), taken 24 Sep 2026: deviation coefficients and tolerances, unlicensed connection agreements, storage licence guarantees",other sources,board-2026-09,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),Storage amendment: consumer storage above contract power,other sources,depolama-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),"DUY amendment: settlement-period wording, emergency instructions to unlicensed plants and storage",other sources,duy-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),"Licence Regulation amendment: storage power, guarantee return, company titles, force majeure",other sources,lisans-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),"Unlicensed Generation amendment: remote control, unpaid output on missed instructions, 60 days to revise agreements",other sources,lisanssiz-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),Industrial Zones amendment: duties on emergency instructions,other sources,osb-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
+Regulation (in timeline only),"YEK Regulation amendment: virtual records for storage, YEKDEM cost formulas",other sources,yek-2026-10,,Not on EPDK's or EPİAŞ's lists; status verified
