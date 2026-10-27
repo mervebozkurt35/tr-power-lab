@@ -1,0 +1,8 @@
+run_end,file,revised_days,oldest_age_days,to_3d,4_14d,15_31d,32_62d,over_62d
+2026-10-26,core_daily.csv,60,178,0,1,12,25,22
+2026-10-26,gas_daily.csv,167,178,0,3,17,31,116
+2026-10-26,balancing_daily.csv,167,178,0,3,17,31,116
+2026-10-26,wind_daily.csv,4,16,0,3,1,0,0
+2026-10-26,load_plan_daily.csv,36,55,0,3,9,24,0
+2026-10-26,ul_gen_daily.csv,304,359,0,0,0,7,297
+2026-10-26,line_capacity_daily.csv,6,21,0,0,6,0,0
