@@ -1,0 +1,342 @@
+---
+aliases:
+  - ../../markets/neighbouring-markets/index.html
+title: "Neighbouring markets"
+subtitle: "Net electricity imports and exports, and the capacity of the links with Greece and Bulgaria"
+execute:
+  echo: false
+  freeze: false
+---
+
+```{python}
+#| label: setup
+import sys
+from pathlib import Path
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+core = pd.read_csv(ROOT / "data/processed/core_daily.csv", parse_dates=["date"]).set_index("date")
+cap = pd.read_csv(ROOT / "data/processed/line_capacity_daily.csv", parse_dates=["date"])
+fmt = lambda v, dec=0: "–" if pd.isna(v) else f"{v:,.{dec}f}"
+
+# Net imports: EPİAŞ total across all borders, MWh per day, positive = more imported than exported.
+ni = core["net_imports_mwh"].dropna()
+ni = ni.loc[ni.index >= "2018-01-01"]
+cons = core["consumption_mwh"].reindex(ni.index)
+last = ni.index.max()
+
+def complete_only(s, rule):
+    """Sum per week or month, leaving out the period that is still running."""
+    out = s.resample(rule, label="left", closed="left").sum(min_count=1) if rule == "W-MON" else s.resample("MS").sum(min_count=1)
+    if rule == "W-MON":
+        out = out[out.index + pd.Timedelta(days=6) <= last]
+    else:
+        out = out[out.index + pd.offsets.MonthEnd(0) <= last]
+    return out
+
+views = {"Daily": ni, "Weekly": complete_only(ni, "W-MON"), "Monthly": complete_only(ni, "MS")}
+cons_m = complete_only(cons.dropna(), "MS")
+ni_m = views["Monthly"]
+```
+
+```{python}
+#| label: stamp
+HTML(cs.data_stamp("core_daily.csv", "line_capacity_daily.csv"))
+```
+
+Türkiye's grid runs in sync with the continental European grid. Türkiye is not part of EU market coupling, so capacity on its borders with Greece and Bulgaria is sold in separate auctions. This page shows how much electricity Türkiye imports and exports overall, and how much capacity is listed on the links with its two EU neighbours. Prices on the other side of these borders are not on this page yet.
+
+```{python}
+#| label: tiles
+y12 = ni.loc[last - pd.DateOffset(years=1) + pd.Timedelta(days=1): last]
+c12 = cons.loc[y12.index].sum()
+net12 = y12.sum() / 1e6
+m12 = ni_m.iloc[-12:]
+imp_months = int((m12 > 0).sum())
+latest = cap[cap["date"] == cap["date"].max()].set_index("direction")["total_mw"]
+into = latest.get("BGTR", np.nan) + latest.get("GRTR", np.nan)
+outof = latest.get("TRBG", np.nan) + latest.get("TRGR", np.nan)
+tiles = [
+    ("Last 12 months", f"{abs(net12):,.1f} TWh", f"net {'imports' if net12 > 0 else 'exports'}, {abs(y12.sum()) / c12 * 100:.1f}% of consumption"),
+    ("Net importing months", f"{imp_months} of 12", "months where imports exceeded exports"),
+    ("Listed capacity into Türkiye", f"{into:,.0f} MW", f"Bulgaria and Greece together, daily average, {cap['date'].max():%d %B %Y}"),
+    ("Listed capacity out of Türkiye", f"{outof:,.0f} MW", "to Bulgaria and Greece together, same day"),
+]
+HTML('<div class="tiles">' + "".join(
+    f'<div class="tile"><p class="eyebrow">{a}</p><h3>{b}</h3><p>{c}</p></div>' for a, b, c in tiles) + "</div>")
+```
+
+## Net imports and exports
+
+Net imports are the electricity brought in minus the electricity sent out, across all borders, as reported by EPİAŞ. A positive bar means Türkiye imported more than it exported that day, a negative bar means it exported more. The data starts in 2018 and does not split the flow by border or into gross imports and gross exports. Use the buttons to change the time step.
+
+```{python}
+#| label: net-chart
+fig = cs.figure(None, "GWh", height=440)
+for name, s in views.items():
+    gwh = s / 1e3
+    cs.add_bar(fig, gwh.index, gwh.where(gwh >= 0), "markets", "gop", name="Net imports", step=1, hover_fmt=",.0f", unit=" GWh")
+    cs.add_bar(fig, gwh.index, gwh.where(gwh < 0), "markets", "vep", name="Net exports", step=1, hover_fmt=",.0f", unit=" GWh")
+    for t in fig.data[-2:]:
+        t.visible = (name == "Monthly")
+        t.showlegend = (name == "Monthly")
+buttons = []
+for i, name in enumerate(views):
+    vis = [j // 2 == i for j in range(6)]
+    buttons.append(dict(label=name, method="update",
+                        args=[{"visible": vis, "showlegend": vis},
+                              {"xaxis.hoverformat": cs.MONTH_HOVER if name == "Monthly" else cs.DAY_HOVER}]))
+fig.update_layout(updatemenus=[dict(type="buttons", direction="right", buttons=buttons, active=2, x=0, y=1.04,
+                                    xanchor="left", yanchor="bottom", showactive=True, pad=dict(r=6, t=0))],
+                  barmode="relative", bargap=0.1, margin=dict(t=40))
+fig.update_xaxes(rangeselector=dict(buttons=[dict(count=1, label="1Y", step="year", stepmode="backward"),
+                                             dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                             dict(step="all", label="All")],
+                                    x=1, xanchor="right", y=1.03, yanchor="bottom"))
+cs.style_controls(fig)
+cs.show(fig)
+```
+
+```{python}
+#| label: net-text
+yr = ni.groupby(ni.index.year).sum() / 1e6
+full = [y for y in yr.index if y < last.year]
+imp_y = [y for y in full if yr[y] > 0]
+top_imp, top_exp = ni_m.idxmax(), ni_m.idxmin()
+def join(xs):
+    xs = [str(x) for x in xs]
+    return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+exp_y = [y for y in full if yr[y] <= 0]
+parts = []
+if imp_y:
+    parts.append(f"a net importer in {join(imp_y)}")
+if exp_y:
+    parts.append(f"a net exporter in {join(exp_y)}")
+txt = (f"Over the full years in the data, Türkiye was {' and '.join(parts)}. "
+       f"The month with the largest net imports was {top_imp:%B %Y} ({ni_m[top_imp] / 1e6:,.2f} TWh); "
+       f"the month with the largest net exports was {top_exp:%B %Y} ({-ni_m[top_exp] / 1e6:,.2f} TWh). ")
+Markdown(txt)
+```
+
+```{python}
+#| label: net-table
+t = pd.DataFrame({"Net imports (TWh)": yr})
+t["Share of consumption"] = [ni[ni.index.year == y].sum() / cons[ni.index.year == y].sum() * 100 for y in t.index]
+t["Net importing months"] = [f"{int((ni_m[ni_m.index.year == y] > 0).sum())} of {int((ni_m.index.year == y).sum())}" for y in t.index]
+t.index = [f"{y}" + (" (to date)" if y == last.year and last.month < 12 else "") for y in t.index]
+t.index.name = "Year"
+t["Net imports (TWh)"] = t["Net imports (TWh)"].map(lambda v: f"{v:+,.2f}")
+t["Share of consumption"] = t["Share of consumption"].map(lambda v: f"{v:+.1f}%")
+Markdown(t.reset_index().to_markdown(index=False, colalign=("left", "right", "right", "right"), disable_numparse=True))
+```
+
+A negative number is a net export. The share compares the net flow with the electricity consumed in Türkiye over the same days; a few days are missing at the edges of some years, so the shares are approximate.
+
+## Imports and exports by border
+
+EPİAŞ reports one net figure for all borders. The ENTSO-E Transparency Platform, where the grid operators of connected countries report their physical flows, gives the monthly energy in each direction for each border. The chart shows imports above zero and exports below zero, in gigawatt-hours (GWh). Use the buttons to switch between months and years, and the range buttons or the mouse to zoom in. Click a name in the legend to hide a border.
+
+```{python}
+#| label: entsoe-setup
+from IPython.display import display
+EN_FILE = ROOT / "data/processed/entsoe_flows_turkey.csv"
+HAVE_EN = EN_FILE.exists()
+if HAVE_EN:
+    en = pd.read_csv(EN_FILE)
+    en = en[en["measure"] == "monthly_gwh"].copy()
+    en["date"] = pd.to_datetime(dict(year=en["year"], month=en["month"], day=1))
+    imp = en.pivot(index="date", columns="border", values="tr_import")
+    exp_ = en.pivot(index="date", columns="border", values="tr_export")
+    en_last = en["date"].max()
+    full_years = [y for y in range(en["year"].min(), en_last.year + 1) if y < en_last.year or en_last.month == 12]
+    yimp = imp.groupby(imp.index.year).sum(min_count=1).loc[full_years]
+    yexp = exp_.groupby(exp_.index.year).sum(min_count=1).loc[full_years]
+    yimp.index = pd.to_datetime([f"{y}-01-01" for y in yimp.index])
+    yexp.index = yimp.index
+    BORDERS = [("BG", "Bulgaria", ("markets", "gop")), ("GR", "Greece", ("markets", "bilateral")), ("GE", "Georgia", ("markets", "gip"))]
+    OTHERS = [("AM", "Armenia"), ("AZ", "Azerbaijan"), ("IQ", "Iraq"), ("IR", "Iran"), ("SY", "Syria")]
+HTML(f'<p class="text-muted small">ENTSO-E data to {en_last:%B %Y}. A one-off download, not updated automatically.</p>' if HAVE_EN else "")
+```
+
+```{python}
+#| label: entsoe-chart
+if HAVE_EN:
+    views = {"Monthly": (imp, exp_), "Yearly": (yimp, yexp)}
+    fig3 = cs.figure(None, "GWh (imports above zero, exports below)", height=460)
+    meta = []                       # (view, legend shown) for every trace, in order
+    for view, (im, ex) in views.items():
+        first_other = True
+        for code, nm, (fam, key) in BORDERS:
+            for kind, df, sign in (("imports", im, 1), ("exports", ex, -1)):
+                cs.add_bar(fig3, df.index, sign * df[code], fam, key, name=f"{nm}, {kind}", step=1, hover_fmt=",.0f", unit=" GWh")
+                t = fig3.data[-1]
+                t.legendgroup = f"{nm}"
+                t.showlegend = (kind == "imports")
+                if kind == "imports":
+                    t.name = nm
+                meta.append((view, kind == "imports"))
+        for code, nm in OTHERS:
+            cs.add_bar(fig3, ex.index, -ex[code], "single", "", name=f"{nm}, exports", hover_fmt=",.0f", unit=" GWh")
+            t = fig3.data[-1]
+            t.legendgroup = "others"
+            t.showlegend = first_other
+            if first_other:
+                t.name = "Armenia, Azerbaijan, Iraq, Iran, Syria (2016–2019 only)"
+            first_other = False
+            meta.append((view, t.showlegend))
+    for t, (view, leg) in zip(fig3.data, meta):
+        t.visible = (view == "Monthly")
+    buttons = []
+    for view, hv in (("Monthly", cs.MONTH_HOVER), ("Yearly", "%Y")):
+        buttons.append(dict(label=view, method="update",
+                            args=[{"visible": [v == view for v, _ in meta], "showlegend": [(v == view) and leg for v, leg in meta]},
+                                  {"xaxis.hoverformat": hv}]))
+    fig3.update_layout(
+        updatemenus=[dict(type="buttons", direction="right", buttons=buttons, active=0, x=0, y=1.04, xanchor="left",
+                          yanchor="bottom", showactive=True, pad=dict(r=6, t=0))],
+        barmode="relative", bargap=0.1, margin=dict(t=40), legend=dict(y=-0.18))
+    fig3.update_xaxes(rangeselector=dict(buttons=[dict(count=3, label="3Y", step="year", stepmode="backward"),
+                                                  dict(count=5, label="5Y", step="year", stepmode="backward"),
+                                                  dict(step="all", label="All")],
+                                         x=1, xanchor="right", y=1.03, yanchor="bottom"))
+    cs.style_controls(fig3)
+    cs.show(fig3)
+```
+
+```{python}
+#| label: entsoe-text
+if HAVE_EN:
+    lines = []
+    ge = yimp["GE"].dropna()
+    if len(ge) and ge.max() > 0:
+        lines.append(f"Imports from Georgia peaked in {ge.idxmax().year} at {ge.max():,.0f} GWh.")
+    lasty = yimp.index[-1]
+    lines.append(f"In {lasty.year}, Bulgaria supplied {yimp.loc[lasty, 'BG'] / yimp.loc[lasty, ['BG', 'GR', 'GE']].sum() * 100:.0f}% of the imports from these three neighbours, "
+                 f"Greece {yimp.loc[lasty, 'GR'] / yimp.loc[lasty, ['BG', 'GR', 'GE']].sum() * 100:.0f}% and Georgia {yimp.loc[lasty, 'GE'] / yimp.loc[lasty, ['BG', 'GR', 'GE']].sum() * 100:.0f}%.")
+    display(Markdown(" ".join(lines)))
+```
+
+**Gaps.** A missing bar means that no value was reported, not that the flow was zero. Georgia is missing altogether in 2020 and for all but one month of 2021, and no imports from Georgia are reported before 2021. Armenia, Azerbaijan, Iraq, Iran and Syria appear only from 2016 to 2019, and only as exports, which are reported as zero in every month; their imports are not reported. For these five countries the platform has no data after 2019. Where Türkiye's own report is missing, the neighbour's report is used with the direction reversed. Years are shown only when complete.
+
+## ENTSO-E against EPİAŞ
+
+Do the three borders above add up to EPİAŞ's national net import? The chart compares them in the months where Bulgaria, Greece and Georgia all report both directions. The bars show the difference: EPİAŞ minus ENTSO-E. A negative bar means that EPİAŞ records more net exports than these three borders explain.
+
+```{python}
+#| label: gap-setup
+if HAVE_EN:
+    okm = [d for d in imp.index if all(pd.notna(imp.loc[d, c]) and pd.notna(exp_.loc[d, c]) for c in ("BG", "GR", "GE"))]
+    enet = (imp.loc[okm, ["BG", "GR", "GE"]].sum(axis=1) - exp_.loc[okm, ["BG", "GR", "GE"]].sum(axis=1))
+    epias_m = (core["net_imports_mwh"].dropna().resample("MS").sum() / 1e3)
+    cmp_ = pd.DataFrame({"entsoe": enet, "epias": epias_m}).dropna()
+    cmp_["gap"] = cmp_["epias"] - cmp_["entsoe"]
+    cy_ = cmp_.groupby(cmp_.index.year).agg(entsoe=("entsoe", "sum"), epias=("epias", "sum"), gap=("gap", "sum"), months=("gap", "size"))
+    cy_ = cy_[cy_["months"] == 12]
+    cy_.index = pd.to_datetime([f"{y}-01-01" for y in cy_.index])
+```
+
+```{python}
+#| label: gap-chart
+if HAVE_EN and len(cmp_):
+    gviews = {"Monthly": cmp_.reindex(pd.date_range(cmp_.index.min(), cmp_.index.max(), freq="MS")), "Yearly": cy_}   # missing months stay blank
+    fig4 = cs.figure(None, "GWh (net imports; negative = net exports)", height=440)
+    gmeta = []
+    for view, df in gviews.items():
+        cs.add_bar(fig4, df.index, df["gap"], "generation", "other", name="Difference (EPİAŞ − ENTSO-E)", hover_fmt=",.0f", unit=" GWh")
+        cs.add_line(fig4, df.index, df["epias"], "single", "", name="EPİAŞ, all borders", hover_fmt=",.0f", unit=" GWh", end_label=False)
+        cs.add_line(fig4, df.index, df["entsoe"], "markets", "gop", name="ENTSO-E, Bulgaria + Greece + Georgia", hover_fmt=",.0f", unit=" GWh", end_label=False)
+        gmeta += [view] * 3
+    for t, v in zip(fig4.data, gmeta):
+        t.visible = (v == "Monthly")
+        t.showlegend = (v == "Monthly")
+    gb = [dict(label=v, method="update",
+               args=[{"visible": [x == v for x in gmeta], "showlegend": [x == v for x in gmeta]},
+                     {"xaxis.hoverformat": cs.MONTH_HOVER if v == "Monthly" else "%Y"}]) for v in gviews]
+    fig4.update_layout(updatemenus=[dict(type="buttons", direction="right", buttons=gb, active=0, x=0, y=1.04, xanchor="left",
+                                         yanchor="bottom", showactive=True, pad=dict(r=6, t=0))],
+                       barmode="relative", bargap=0.1, margin=dict(t=40), legend=dict(y=-0.14))
+    fig4.update_xaxes(rangeselector=dict(buttons=[dict(count=2, label="2Y", step="year", stepmode="backward"),
+                                                  dict(step="all", label="All")],
+                                         x=1, xanchor="right", y=1.03, yanchor="bottom"))
+    cs.style_controls(fig4)
+    cs.show(fig4)
+```
+
+```{python}
+#| label: gap-text
+if HAVE_EN and len(cy_):
+    f_, l_ = cy_.iloc[0], cy_.iloc[-1]
+    mg = cmp_["gap"]
+    worst = mg.idxmin()
+    txt = (f"In {cy_.index[0].year}, the first complete year of the comparison, EPİAŞ's net import was {abs(f_['gap']):,.0f} GWh "
+           f"{'lower' if f_['gap'] < 0 else 'higher'} than the ENTSO-E total of the three borders"
+           + (f"; in {cy_.index[-1].year} it was {abs(l_['gap']):,.0f} GWh {'lower' if l_['gap'] < 0 else 'higher'}. " if len(cy_) > 1 else ". ") +
+           f"The largest monthly difference was {mg.min():+,.0f} GWh in {worst:%B %Y}. ")
+    txt += ("The difference is what EPİAŞ counts in national net imports that these three borders do not explain. "
+            "It can come from flows with other neighbours, such as Syria, where exports have been [reported](https://www.enerdata.net/publications/daily-energy-news/turkiye-targets-900-mw-electricity-exports-syria-q1-2026.html), "
+            "and from differences between ENTSO-E's physical flows and EPİAŞ's real-time figures; this comparison cannot tell the two apart.")
+    display(Markdown(txt))
+```
+
+## Capacity on the Bulgarian and Greek links
+
+EPİAŞ lists a capacity for each direction of the two borders: Bulgaria to Türkiye (BG→TR), Türkiye to Bulgaria (TR→BG), Greece to Türkiye (GR→TR) and Türkiye to Greece (TR→GR). The chart shows the daily average of the hourly values. Capacity is what can be scheduled, not what flows: an interconnector can carry much less than its capacity or none at all.
+
+```{python}
+#| label: cap-chart
+names = {"BGTR": "Bulgaria → Türkiye", "TRBG": "Türkiye → Bulgaria", "GRTR": "Greece → Türkiye", "TRGR": "Türkiye → Greece"}
+keys = {"BGTR": ("markets", "gop"), "TRBG": ("markets", "gop"), "GRTR": ("markets", "bilateral"), "TRGR": ("markets", "bilateral")}
+dash = {"BGTR": None, "TRBG": "dot", "GRTR": None, "TRGR": "dot"}
+piv = cap.pivot(index="date", columns="direction", values="total_mw")
+pm = piv.resample("MS").mean()
+pm = pm[pm.index + pd.offsets.MonthEnd(0) <= piv.index.max()]
+fig2 = cs.figure(None, "MW", height=420)
+for view, df in (("Daily", piv), ("Monthly", pm)):
+    for d in names:
+        cs.add_line(fig2, df.index, df[d], *keys[d], name=names[d], unit=" MW", hover_fmt=",.0f", dash=dash[d], end_label=False)
+        fig2.data[-1].update(visible=(view == "Monthly"), showlegend=(view == "Monthly"))
+btn = []
+for i, view in enumerate(("Daily", "Monthly")):
+    vis = [j // 4 == i for j in range(8)]
+    btn.append(dict(label=view, method="update",
+                    args=[{"visible": vis, "showlegend": vis},
+                          {"xaxis.hoverformat": cs.MONTH_HOVER if view == "Monthly" else cs.DAY_HOVER}]))
+fig2.update_layout(updatemenus=[dict(type="buttons", direction="right", buttons=btn, active=1, x=0, y=1.04,
+                                     xanchor="left", yanchor="bottom", showactive=True, pad=dict(r=6, t=0))],
+                   margin=dict(t=40))
+fig2.update_yaxes(rangemode="tozero")
+cs.style_controls(fig2)
+cs.show(fig2)
+```
+
+```{python}
+#| label: cap-text
+ya = cap.assign(year=cap["date"].dt.year).groupby(["year", "direction"])["total_mw"].mean().unstack()
+y0, y1 = ya.index.min(), ya.index[-1]
+txt = (f"In {y1} the listed capacity averages {ya.loc[y1, 'BGTR']:,.0f} MW from Bulgaria and {ya.loc[y1, 'TRBG']:,.0f} MW to Bulgaria, "
+       f"and {ya.loc[y1, 'GRTR']:,.0f} MW from Greece and {ya.loc[y1, 'TRGR']:,.0f} MW to Greece. ")
+if bool(((ya["BGTR"] > ya["TRBG"]) & (ya["GRTR"] > ya["TRGR"])).all()):
+    txt += f"In every year since {y0} the capacity towards Türkiye has been higher than the capacity out of it, on both borders."
+Markdown(txt)
+```
+
+## Other borders
+
+Bulgaria and Greece are not Türkiye's only electricity neighbours. A [CIGRE country presentation](https://www.cigre.org/userfiles/files/Community/National%20Power%20System/Turkey_The_Electri_%20Power_System.pptx.pdf) lists lines to Georgia, Armenia, Azerbaijan (Nakhchivan), Iran, Iraq and Syria as well. ENTSO-E has monthly data for all of them, but for Armenia, Azerbaijan, Iraq, Iran and Syria only for 2016 to 2019 (exports only, reported as zero). Exports to Syria have since started: [Enerdata](https://www.enerdata.net/publications/daily-energy-news/turkiye-targets-900-mw-electricity-exports-syria-q1-2026.html) reports 281 MW in 2025 and a target of about 900 MW.
+
+EPİAŞ's net import chart includes all borders, because it reports one total. The capacity chart covers only Bulgaria and Greece, because EPİAŞ publishes line capacities and capacity auctions only for those two directions: its own direction list, checked in October 2026, contains just those four. We have not found a source by country for the other borders after 2019.
+
+## Notes
+
+- **Source:** EPİAŞ Şeffaflık Platformu, through [eptr2](https://github.com/Tideseed/eptr2). Net imports are the total across all borders ("net import" in the real-time series). Capacity is the series "Hat Kapasiteleri" (Interconnection Line Capacities), which EPİAŞ describes as showing total capacity and available capacity for the interconnections.
+- **Definition of the capacity series:** the platform publishes a total and an available capacity. The available figure has been zero since 2024, so we show only the total. Whether the total is the physical limit of the line, the capacity offered in auctions or the capacity allocated is still to be confirmed against EPİAŞ's documentation; we therefore do not compute how much of it is used.
+- **ENTSO-E data:** [ENTSO-E Transparency Platform](https://transparency.entsoe.eu), Physical Energy & Power Flows, monthly values in GWh, downloaded in October 2026 and merged by hand; Türkiye's own report is used where it exists, otherwise the neighbour's report with the direction reversed. For 2019 two downloads overlap and differ slightly; the later file is used. The data is not updated automatically.
+- **Not on this page yet:** prices on the other side of the borders, and a comparison of Turkish prices with Greek and Bulgarian ones.
+- See the [methodology](../../methodology.qmd) for definitions.
