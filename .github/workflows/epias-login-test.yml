@@ -1,0 +1,23 @@
+name: EPİAŞ login test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  login-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install eptr2 pandas
+      - name: Try the login and a few downloads
+        env:
+          EPTR_USERNAME: ${{ secrets.EPTR_USERNAME }}
+          EPTR_PASSWORD: ${{ secrets.EPTR_PASSWORD }}
+        run: python scripts/probe_login.py
