@@ -2,14 +2,14 @@
   "files": {
     "reservoirs_daily.csv": {
       "level": "ok",
-      "last": "2026-10-28"
+      "last": "2026-10-30"
     },
     "core_daily.csv": {
       "level": "ok",
-      "rows": 5476,
-      "added": 2,
+      "rows": 5477,
+      "added": 1,
       "changed": 0,
-      "last": "2026-10-28",
+      "last": "2026-10-29",
       "lag_days": 0
     },
     "core_monthly.csv": {
@@ -21,10 +21,10 @@
     },
     "gas_daily.csv": {
       "level": "ok",
-      "rows": 3006,
-      "added": 2,
+      "rows": 3007,
+      "added": 1,
       "changed": 0,
-      "last": "2026-10-28",
+      "last": "2026-10-29",
       "lag_days": 0
     },
     "gas_monthly.csv": {
@@ -36,10 +36,10 @@
     },
     "balancing_daily.csv": {
       "level": "ok",
-      "rows": 5476,
-      "added": 2,
+      "rows": 5477,
+      "added": 1,
       "changed": 0,
-      "last": "2026-10-28",
+      "last": "2026-10-29",
       "lag_days": 0
     },
     "balancing_monthly.csv": {
@@ -51,18 +51,18 @@
     },
     "wind_daily.csv": {
       "level": "ok",
-      "rows": 2795,
-      "added": 2,
+      "rows": 2796,
+      "added": 1,
       "changed": 0,
-      "last": "2026-10-28",
+      "last": "2026-10-29",
       "lag_days": 0
     },
     "load_plan_daily.csv": {
       "level": "ok",
-      "rows": 5475,
-      "added": 2,
+      "rows": 5476,
+      "added": 1,
       "changed": 0,
-      "last": "2026-10-28",
+      "last": "2026-10-29",
       "lag_days": 0
     },
     "ul_gen_daily.csv": {
@@ -88,47 +88,37 @@
     },
     "congestion_province_monthly.csv": {
       "revisions": {
-        "values": 16,
-        "keys": 4,
-        "first": "2026-10|ESKİŞEHİR",
-        "last": "2026-10|İSTANBUL-AVRUPA",
+        "values": 4,
+        "keys": 1,
+        "first": "2026-10|ANKARA",
+        "last": "2026-10|ANKARA",
         "by_column": {
           "mcp_total_tl": {
-            "values": 4,
-            "days": 4,
-            "max_abs_pct": 8.4
-          },
-          "smp_total_tl": {
-            "values": 4,
-            "days": 4,
-            "max_abs_pct": 0.0
-          },
-          "mcp_down_tl": {
-            "values": 2,
-            "days": 2,
-            "max_abs_pct": null
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 14.0
           },
           "mcp_up_tl": {
-            "values": 2,
-            "days": 2,
-            "max_abs_pct": 8.4
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 14.0
           },
-          "smp_down_tl": {
-            "values": 2,
-            "days": 2,
-            "max_abs_pct": null
+          "smp_total_tl": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 169.1
           },
           "smp_up_tl": {
-            "values": 2,
-            "days": 2,
-            "max_abs_pct": 0.0
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 169.1
           }
         }
       },
       "level": "ok",
       "rows": 11644,
       "added": 0,
-      "changed": 4,
+      "changed": 1,
       "last": "2026-10"
     },
     "line_capacity_daily.csv": {
@@ -137,10 +127,10 @@
     },
     "line_events.csv": {
       "level": "ok",
-      "rows": 1039,
-      "added": 3,
+      "rows": 1040,
+      "added": 1,
       "changed": 1,
-      "last": "2026-10-28"
+      "last": "2026-10-29"
     },
     "ren_capacity_monthly.csv": {
       "level": "ok",
@@ -161,18 +151,18 @@
     "bilateral_euas: raw columns ['date', 'contractAmount']; using date = 'date', quantity = 'contractAmount'.",
     "ren_capacity: 1 rows have no source name and were left out."
   ],
-  "checked": "2026-10-29 13:27",
+  "checked": "2026-10-30 13:30",
   "timezone": "Europe/Istanbul",
-  "yesterday": "2026-10-28",
+  "yesterday": "2026-10-29",
   "data_through": {
-    "core_daily.csv": "2026-10-28",
+    "core_daily.csv": "2026-10-29",
     "core_monthly.csv": "2026-10",
-    "gas_daily.csv": "2026-10-28",
+    "gas_daily.csv": "2026-10-29",
     "gas_monthly.csv": "2026-10",
-    "balancing_daily.csv": "2026-10-28",
+    "balancing_daily.csv": "2026-10-29",
     "balancing_monthly.csv": "2026-10",
-    "wind_daily.csv": "2026-10-28",
-    "load_plan_daily.csv": "2026-10-28",
+    "wind_daily.csv": "2026-10-29",
+    "load_plan_daily.csv": "2026-10-29",
     "ul_gen_daily.csv": "2026-09-30",
     "ul_gen_monthly.csv": "2026-09",
     "congestion_monthly.csv": "2026-10",
