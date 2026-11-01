@@ -4,7 +4,7 @@ subtitle: "Why keeping Marmara supplied got expensive in the months when electri
 date: 2026-11-01
 categories: [congestion, balancing, market design]
 description: "In spring 2026 the day-ahead price fell to €11/MWh while grid-constraint redispatch around Marmara cost 16 billion TL. What happened, and what SHURA's study on locational pricing says about it."
-draft: true   # change to false to publish
+draft: false   # change to false to publish
 execute:
   echo: false
   freeze: auto
