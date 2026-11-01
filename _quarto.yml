@@ -17,8 +17,7 @@ execute:
 website:
   title: "TR Power Lab"
   description: "Data and analysis on Türkiye's electricity market."
-  site-url: https://mervebozkurt35.github.io/tr-power-lab   # change to https://trpowerlab.com when the domain is live
-  repo-url: https://github.com/mervebozkurt35/tr-power-lab
+  site-url: https://trpowerlab.com
   search: true
   page-navigation: true
   navbar:
