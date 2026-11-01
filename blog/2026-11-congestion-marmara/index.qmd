@@ -4,7 +4,6 @@ subtitle: "Why keeping Marmara supplied got expensive in the months when electri
 date: 2026-11-01
 categories: [congestion, balancing, market design]
 description: "In spring 2026 the day-ahead price fell to €11/MWh while grid-constraint redispatch around Marmara cost 16 billion TL. What happened, and what SHURA's study on locational pricing says about it."
-draft: false   # change to false to publish
 execute:
   echo: false
   freeze: auto
@@ -291,7 +290,7 @@ Open congestion data, the first part of point 7, is what made this analysis poss
 ## Sources
 
 - SHURA Energy Transition Center (June 2026). *Enerji Dönüşümünde Şebeke ve Piyasa Uyumu için Konumsal Marjinal Fiyatlandırma* (full report, Turkish) and *Locational Marginal Pricing for Grid and Market Alignment in the Energy Transition* (executive summary). [shura.org.tr](https://shura.org.tr)
-- EPİAŞ Şeffaflık Platformu: prices, generation, balancing instructions and congestion cost, processed in this site's [data pages](/data/turkiye/balancing.qmd) and [repository](https://github.com/mervebozkurt35/tr-power-lab), through 31 October 2026.
+- EPİAŞ Şeffaflık Platformu: prices, generation, balancing instructions and congestion cost, processed in this site's [data pages](/data/turkiye/balancing.qmd), through 31 October 2026.
 - [Ember, Türkiye Electricity Review 2026](https://ember-energy.org/latest-insights/turkiye-electricity-review-2026/wind-and-solar) and [Rüzgar ve güneş Türkiye'de ilk kez kömürü geride bıraktı](https://ember-energy.org/tr/guncellemeler/ruzgar-ve-gunes-turkiyede-ilk-kez-komuru-geride-birakti/)
 - [Enerji Ajansı, Türkiye'nin kurulu gücü (September 2026)](https://enerjiajansi.com.tr/turkiyenin-kurulu-gucu/)
 - [GENSED, İllere göre lisanssız GES kurulu gücü (July 2025)](https://gensed.org/illere-gore-lisanssiz-ges-kurulu-gucu/)
