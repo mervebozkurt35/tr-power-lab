@@ -1,0 +1,300 @@
+---
+title: "One price, two Türkiyes"
+subtitle: "Why keeping Marmara supplied got expensive in the months when electricity was cheapest"
+date: 2026-11-01
+categories: [congestion, balancing, market design]
+description: "In spring 2026 the day-ahead price fell to €11/MWh while grid-constraint redispatch around Marmara cost 16 billion TL. What happened, and what SHURA's study on locational pricing says about it."
+draft: true   # change to false to publish
+execute:
+  echo: false
+  freeze: auto
+---
+
+```{python}
+#| label: setup
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from IPython.display import Markdown
+
+ROOT = Path.cwd()
+while not (ROOT / "_quarto.yml").exists():
+    ROOT = ROOT.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import chart_style as cs
+
+P = ROOT / "data/processed"
+END = "2026-10"   # the post is written on data through October 2026; later updates do not change it
+S = cs.SURF[cs.MODE]
+
+core = pd.read_csv(P / "core_monthly.csv").set_index("month").loc[:END]
+bal = pd.read_csv(P / "balancing_monthly.csv").set_index("month").loc[:END]
+cong = pd.read_csv(P / "congestion_province_monthly.csv")
+cong = cong[cong["month"] <= END]
+daily = pd.read_csv(P / "core_daily.csv", parse_dates=["date"])
+daily = daily[daily["date"] < "2026-11-01"]
+
+MARMARA = ["EDİRNE", "KIRKLARELİ", "TEKİRDAĞ", "İSTANBUL-AVRUPA", "İSTANBUL-ASYA", "KOCAELİ", "SAKARYA",
+           "BURSA", "YALOVA", "BİLECİK", "BALIKESİR", "ÇANAKKALE"]
+THRACE = ["EDİRNE", "KIRKLARELİ", "TEKİRDAĞ", "İSTANBUL-AVRUPA"]
+```
+
+Türkiye's cheapest electricity comes from the centre and the east of the country, while most of it is used in the northwest. In 2026 the lines between the two were full on the very days when power was cheapest.
+
+I first saw this in the [balancing data](/data/turkiye/balancing.qmd) on this site. In May 2026 the day-ahead price averaged **€11/MWh** and 214 hours cleared at zero. In the same month TEİAŞ ordered **1.93 TWh** of up-regulation with the grid-constraint label: 98% of all up-regulation, against 2% over the whole of 2025. EPİAŞ's congestion cost for May was **5.8 billion TL**, and **95%** of it went to plants in Marmara provinces. Why would the grid be under the most pressure when electricity was plentiful and cheap? That is the question I tried to answer.
+
+```{python}
+#| label: fig-price-constraint
+#| fig-cap: "Monthly average day-ahead price (top) and up-regulation ordered with the grid-constraint label (bottom). Source: EPİAŞ Şeffaflık Platformu, TR Power Lab."
+m = pd.DataFrame({
+    "price": core["ptf_eur_mean"],
+    "constraint": bal["up_code1_mwh"] / 1000,
+    "hydro": (core["hydro_dam_mwh"] + core["hydro_river_mwh"]) / core["total_mwh"] * 100,
+}).loc["2025-01":]
+x = pd.to_datetime(m.index + "-01")
+
+fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=[0.45, 0.55])
+pc, uc = cs.colours("prices", "ptf"), cs.colours("balancing", "up", step=1)
+fig.add_trace(go.Scatter(x=x, y=m["price"], mode="lines+markers", name="Day-ahead price (PTF)",
+                         line=dict(width=2, color=pc[cs.MODE]), marker=dict(size=5),
+                         hovertemplate="%{y:.1f} €/MWh<extra>Day-ahead price</extra>"), row=1, col=1)
+fig.add_trace(go.Bar(x=x, y=m["constraint"], name="Up-regulation, grid constraint (label 1)",
+                     marker=dict(color=uc[cs.MODE], line=dict(width=1, color=S["surface"])),
+                     customdata=m["hydro"],
+                     hovertemplate="%{y:,.0f} GWh · hydro %{customdata:.0f}% of generation<extra>Grid constraint</extra>"),
+              row=2, col=1)
+wet = m[(m.index >= "2026-02") & (m.index <= "2026-06")]
+fig.add_vrect(x0=pd.Timestamp("2026-01-16"), x1=pd.Timestamp("2026-06-16"), fillcolor=S["grid"], opacity=0.6,
+              line_width=0, layer="below")
+fig.add_annotation(x=pd.Timestamp("2026-01-20"), y=1.0, xref="x", yref="paper", xanchor="left", yanchor="top",
+                   showarrow=False, align="left", font=dict(size=12, color=S["ink_muted"]),
+                   text=f"Wet spring:<br>hydro {wet['hydro'].min():.0f}–{wet['hydro'].max():.0f}% of generation")
+low = m["price"].idxmin()
+fig.add_annotation(x=pd.Timestamp(low + "-01"), y=m.loc[low, "price"], text=f"€{m.loc[low, 'price']:.0f}",
+                   showarrow=False, yshift=-14, font=dict(color=S["ink"]), row=1, col=1)
+pk = m["constraint"].idxmax()
+fig.add_annotation(x=pd.Timestamp(pk + "-01"), y=m.loc[pk, "constraint"], text=f"{m.loc[pk, 'constraint']:,.0f} GWh",
+                   showarrow=False, yshift=12, font=dict(color=S["ink"]), row=2, col=1)
+
+base = cs.figure(height=480)
+fig.update_layout(base.layout)
+fig.update_layout(hovermode="x unified", showlegend=False, margin=dict(l=8, r=8, t=16, b=16), bargap=0.25)
+axis = dict(showgrid=False, linecolor=S["axis"], tickcolor=S["axis"], tickfont=dict(color=S["ink_muted"]), zeroline=False)
+fig.update_xaxes(**axis, dtick="M3", tickformat="%b %Y")
+fig.update_yaxes(showgrid=True, gridcolor=S["grid"], linecolor="rgba(0,0,0,0)", tickfont=dict(color=S["ink_muted"]),
+                 zeroline=False, separatethousands=True)
+fig.update_yaxes(title=dict(text="€/MWh", font=dict(color=S["ink_muted"], size=12)), rangemode="tozero", row=1, col=1)
+fig.update_yaxes(title=dict(text="GWh per month", font=dict(color=S["ink_muted"], size=12)), row=2, col=1)
+cs.show(fig)
+```
+
+The short answer is geography. On low-price days, solar in Central Anatolia and hydro in the east push large volumes of power west. The lines into Thrace and Istanbul cannot carry all of it. To keep the grid within its limits, TEİAŞ orders cheap plants in Anatolia to produce less and pays more expensive plants close to the load to produce more. The market price that day is low, but the cost of actually delivering the power is not.
+
+SHURA's report on locational marginal pricing, published in June 2026, points to the same place. It describes Thrace as the main regional bottleneck in the system: one of the country's largest load centres, connected to the rest of the grid through limited transmission capacity.
+
+## One price for the whole country
+
+Every day EPİAŞ clears one hourly market clearing price (PTF) for all of Türkiye, a country of more than 80 million people and 81 provinces, and that price ignores transmission limits. Bids close at 12:30 the day before. Offers are ranked from cheapest to most expensive and matched with demand. The whole country is one bidding zone, so a megawatt-hour in Hakkari is worth the same as one in Edirne.
+
+The day-ahead market (GÖP) is where the reference price is set. In 2024 and 2025 it cleared about 230 TWh a year, roughly two-thirds of consumption; so far in 2026 the figure is 59%. Bilateral contracts and the balancing market are priced off it too.
+
+Think of milk. Say Türkiye drinks 100 million litres a day, produced everywhere from Hakkari to Edirne, and two-thirds of it is sold at a single national price. That price ignores how the milk reaches people: fuel, tolls, and how many trucks can get into Istanbul, where demand is highest and local production is small. When the trucks are full, someone has to buy milk at a premium near Istanbul and pour away cheap milk in the east. Electricity works the same way, except that, unlike milk, nobody can go without it, and a shortage can cost millions of dollars. The transmission lines are the trucks. Congestion is what happens when the trucks are full, or when there are not enough of them at busy times in busy places.
+
+A single price has a real advantage: every generator competes in one large, liquid market. What it leaves out is regional supply and demand and the limits of the grid. Those costs do not disappear. They move out of the market price and into TEİAŞ's redispatch bill.
+
+## Where power is made and where it is used
+
+Demand is concentrated in the northwest, solar in Central Anatolia and hydro in the east. Istanbul alone produced 29.2% of Türkiye's GDP in 2024 ([TÜİK](https://www.alomaliye.com/2025/12/11/il-bazinda-gayrisafi-yurt-ici-hasila-2024/)). In SHURA's 2035 Net Zero scenario, the Marmara price zone uses about 119 TWh a year, a quarter of national demand (474 TWh) and more than a third of everything Türkiye consumed in 2025. The next-largest zones are much smaller: the Aegean–Mediterranean zone uses about 82 TWh, Central Anatolia about 65 TWh and the Konya–Karaman solar belt about 39 TWh. Marmara has 7.7 GW of gas, 7 GW of wind and 1.2 GW of solar in that scenario, so it depends on power flowing in from the rest of the country.
+
+```{python}
+#| label: sources-table
+def shares(a, b):
+    s = core.loc[a:b].sum(numeric_only=True)
+    tot = s["total_mwh"] + s["embedded_gen_est_mwh"]
+    return {
+        "Solar": (s["solar_mwh"] + s["embedded_gen_est_mwh"]) / tot * 100,
+        "Hydro": (s["hydro_dam_mwh"] + s["hydro_river_mwh"]) / tot * 100,
+        "Wind": s["wind_mwh"] / tot * 100,
+        "Coal": (s["lignite_mwh"] + s["imported_coal_mwh"] + s["hard_coal_mwh"]) / tot * 100,
+        "Natural gas": s["gas_mwh"] / tot * 100,
+    }
+s25, s26 = shares("2025-01", "2025-10"), shares("2026-01", "2026-10")
+where = {
+    "Solar": ("Central Anatolia and the southeast (Konya, Gaziantep, Ankara, Kayseri)", "28.2 GW"),
+    "Hydro": ("The east, mainly the Euphrates–Tigris basin", "32.3 GW"),
+    "Wind": ("The west: Marmara and the Aegean (İzmir, Çanakkale, Balıkesir)", "15.6 GW"),
+    "Coal": ("Imported coal on the coasts, lignite at the mines", "20.7 GW"),
+    "Natural gas": ("Across the country, many plants near the industrial northwest", "24.9 GW"),
+}
+rows = [f"| {k} | {w} | {c} | {s25[k]:.0f}% | {s26[k]:.0f}% |" for k, (w, c) in where.items()]
+Markdown("\n".join(["| Source | Where it is | Installed, Sept 2026 | Share, Jan–Oct 2025 | Share, Jan–Oct 2026 |",
+                    "|---|---|---:|---:|---:|"] + rows))
+```
+
+Shares are of metered generation plus TR Power Lab's estimate of unmetered (mostly rooftop and distribution-grid) solar. For the full year 2025 this gives the same split as [Ember](https://ember-energy.org/latest-insights/turkiye-electricity-review-2026/wind-and-solar): coal 34%, hydro 16%, wind 11%, solar 11%. Installed capacity is TEİAŞ data via [Enerji Ajansı](https://enerjiajansi.com.tr/turkiyenin-kurulu-gucu/); provincial solar from [EPDK via GENSED](https://gensed.org/illere-gore-lisanssiz-ges-kurulu-gucu/) and regional wind from [TÜREB via Forbes Türkiye](https://www.forbes.com.tr/surdurulebilirlik/turkiye-ruzgarda-kapasite-artisini-surdurdu).
+
+2026 has been a hydro year. Hydro went from 17% of generation in the first ten months of 2025 to 30% in the same months of 2026, and gas was squeezed from 21% to 11%. In April, wind and solar together overtook coal for the first time, and reservoir inflows in the first four months were the highest in eight years ([Ember](https://ember-energy.org/tr/guncellemeler/ruzgar-ve-gunes-turkiyede-ilk-kez-komuru-geride-birakti/)).
+
+The flow from east to west is mostly about solar and hydro, not wind. Most wind farms are already in Marmara and the Aegean. That means the pressure on Thrace comes from two directions at once: power from Anatolia heading west, and Aegean wind and solar heading north to Istanbul through the same corridors.
+
+## Where the congestion money went
+
+```{python}
+#| label: fig-map
+#| fig-cap: "Congestion cost by province, January–October 2026, million TL at system marginal prices. İstanbul combines the European and Asian sides. Source: EPİAŞ Şeffaflık Platformu, TR Power Lab. Boundaries © OpenStreetMap contributors (ODbL), via cihadturhan/tr-geojson."
+geo = json.loads((ROOT / "data/geo/tr-provinces.geojson").read_text(encoding="utf-8-sig"))
+
+def epias_name(name: str) -> str:
+    """Province name as EPİAŞ writes it: Turkish upper case, a few long forms."""
+    special = {"Afyon": "AFYONKARAHİSAR"}
+    return special.get(name, name.replace("i", "İ").replace("ı", "I").upper())
+
+cong["prov"] = cong["province"].replace({"İSTANBUL-AVRUPA": "İSTANBUL", "İSTANBUL-ASYA": "İSTANBUL"})
+c26 = cong[cong["month"].str.startswith("2026")].groupby("prov")["smp_total_tl"].sum() / 1e6
+c25 = cong[cong["month"].str.startswith("2025")].groupby("prov")["smp_total_tl"].sum() / 1e6
+names = [f["properties"]["name"] for f in geo["features"]]
+keys = [epias_name(n) for n in names]
+missing = [k for k in keys if k not in c26.index]
+assert not missing, f"province names not found in the congestion data: {missing}"
+
+bins = [0, 10, 100, 500, 1000, 2000, float("inf")]
+labels = ["under 10", "10–100", "100–500", "500–1,000", "1,000–2,000", "over 2,000"]
+steps = ["#1E2A31", "#4A3436", "#7A3E3D", "#B03A36", "#DA5B5A", "#F09A93"]   # grid colour to the warm 'up' family
+cls = pd.cut(c26.reindex(keys).fillna(0), bins=bins, labels=False, right=False)
+scale = []
+for i, col in enumerate(steps):
+    scale += [[i / len(steps), col], [(i + 1) / len(steps), col]]
+
+mfig = go.Figure(go.Choropleth(
+    geojson=geo, featureidkey="properties.name", locations=names, z=cls, zmin=0, zmax=len(steps),
+    colorscale=scale, marker_line_color=S["surface"], marker_line_width=0.6, showscale=False,
+    customdata=list(zip(names, c26.reindex(keys).fillna(0), c25.reindex(keys).fillna(0))),
+    hovertemplate="<b>%{customdata[0]}</b><br>2026 (Jan–Oct): %{customdata[1]:,.0f} million TL"
+                  "<br>2025: %{customdata[2]:,.1f} million TL<extra></extra>",
+))
+for i, (lab, col) in enumerate(zip(labels, steps)):   # legend as coloured squares
+    mfig.add_trace(go.Scattergeo(lon=[None], lat=[None], mode="markers", name=lab,
+                                 marker=dict(size=12, symbol="square", color=col, line=dict(width=1, color=S["axis"]))))
+mfig.update_geos(visible=False, projection_type="mercator", bgcolor="rgba(0,0,0,0)",
+                  lonaxis_range=[25.6, 44.9], lataxis_range=[35.8, 42.2])
+mfig.update_layout(height=400, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor="rgba(0,0,0,0)",
+                   font=dict(family=cs.FONT, size=13, color=S["ink"]),
+                   legend=dict(title=dict(text="million TL", font=dict(color=S["ink_muted"])), orientation="h",
+                               x=0, y=-0.02, yanchor="top", font=dict(color=S["ink_muted"])))
+mfig.show(config=cs.CONFIG)
+```
+
+```{python}
+#| label: map-note
+tot26 = c26.sum()
+cm = cong[cong["month"].str.startswith("2026")]
+mar = cm[cm["province"].isin(MARMARA)]["smp_total_tl"].sum() / 1e6
+thr = cm[cm["province"].isin(THRACE)]["smp_total_tl"].sum() / 1e6
+up = cm["smp_up_tl"].sum() / cm["smp_total_tl"].sum() * 100
+top = c26.sort_values(ascending=False)
+Markdown(
+    f"From January to October 2026 the congestion cost came to **{tot26 / 1000:.1f} billion TL**, against "
+    f"{c25.sum() / 1000:.1f} billion TL in the whole of 2025. Marmara provinces took {mar / tot26 * 100:.0f}% of it "
+    f"and Thrace alone (Edirne, Kırklareli, Tekirdağ and European İstanbul) {thr / tot26 * 100:.0f}%. "
+    f"{up:.0f}% was paid for up-regulation. The largest amounts were in Kırklareli ({top['KIRKLARELİ'] / 1000:.1f} billion TL) "
+    f"and Sakarya ({top['SAKARYA'] / 1000:.1f} billion TL), followed by Çanakkale, İstanbul, Balıkesir and Zonguldak."
+)
+```
+
+These provinces have large gas and coal plants on both sides of the Bosphorus: Hamitabat and ENKA's new 852 MW unit in Kırklareli, ENKA Adapazarı in Sakarya, and coal plants in Çanakkale and Zonguldak. The data gives totals by province only, so I cannot yet say which units were instructed. Plant-level instruction data would settle that.
+
+## What it cost, and who paid
+
+Congestion is paid for outside the market price and passed on to consumers. TEİAŞ handles it in real time with YAL (load-up) and YAT (load-down) instructions, usually by running expensive thermal plants near the load. SHURA notes that these costs are later passed through to end consumers (full report, §3.5.3).
+
+```{python}
+#| label: cost-table
+daily["gop_spend"] = daily["gop_mwh"] * daily["ptf_cons_weighted"].fillna(daily["ptf_mean"])
+gop = daily.groupby(daily["date"].dt.strftime("%Y-%m"))["gop_spend"].sum()
+cm_all = cong.groupby("month")["smp_total_tl"].sum()
+cm_mar = cong[cong["province"].isin(MARMARA)].groupby("month")["smp_total_tl"].sum()
+
+def row(label, months):
+    c = cm_all.reindex(months).sum()
+    return (f"| {label} | {c / 1e9:,.2f} | {cm_mar.reindex(months).sum() / c * 100:.0f}% | "
+            f"{c / gop.reindex(months).sum() * 100:.{2 if c / gop.reindex(months).sum() < 0.01 else 0}f}% | "
+            f"{c / core['consumption_mwh'].reindex(months).sum():,.0f} |")
+
+months = lambda a, b: [m for m in core.index if a <= m <= b]
+lines = ["| Period | Congestion cost (bn TL) | Paid in Marmara | Share of day-ahead market spend | TL per MWh consumed |",
+         "|---|---:|---:|---:|---:|",
+         row("Jan–Oct 2026", months("2026-01", "2026-10")),
+         row("June 2026", ["2026-06"]), row("May 2026", ["2026-05"]),
+         row("April 2026", ["2026-04"]), row("March 2026", ["2026-03"]),
+         row("2025, full year", months("2025-01", "2025-12"))]
+Markdown("\n".join(lines))
+```
+
+Congestion cost is EPİAŞ's figure at system marginal prices (SMP). Day-ahead market spend is daily cleared volume multiplied by the price.
+
+Cheap days hide this cost. In May 2026 the day-ahead price averaged 591 TL/MWh (€11). The congestion bill added another 221 TL for every MWh consumed, about 37% on top of the market price. Per MWh of constraint up-regulation, the congestion cost was around 3,000 TL (about €57), five times that month's average day-ahead price. The cheapest day of the year was 27 May: the price averaged €1.31/MWh, 14 hours cleared at zero, and TEİAŞ still ordered 21.9 GWh of constraint up-regulation. Over 2026 as a whole, the daily constraint volume moves against the price (correlation −0.58) and with the hydro share of generation (+0.69).
+
+Capacity payments are a separate cost and are not included in these figures. In 2024 gas plants received about €195 million from the capacity mechanism for staying available. SHURA's only link between the two is indirect: with nodal prices, 4 of the 17 supported gas plants would earn enough in the market to no longer need the payment, saving about €41 million a year.
+
+## Already at 2035 levels
+
+Up-regulation for grid constraints reached 6.48 TWh between January and October 2026, which is **2.2% of consumption**. In 2025 it was 0.04%, in 2024 0.33%. For 2035, SHURA expects the annual redispatch volume for transmission constraints to be 1.2% of demand in its Reference scenario (5.9 of 479 TWh) and about 3% in its Net Zero scenario (14.6 of 474 TWh). After one wet year, Türkiye is already inside that range. The two numbers are not measured the same way, though: SHURA counts all redispatch, while my 2.2% counts only up-instructions that carry the constraint label.
+
+## What SHURA found
+
+SHURA, working with EPRA, simulated Türkiye's power system in 2035 under three settlement rules: today's single national price, zonal prices and nodal prices. It ran two scenarios. The Reference scenario has 26 GW of solar and 23 GW of wind; Net Zero has 57 GW of solar and 39 GW of wind. Under nodal pricing almost all congestion is resolved inside the day-ahead market and total welfare rises by 23%. The Net Zero results:
+
+| Net Zero, 2035 | National (today) | Zonal (6 zones) | Nodal |
+|---|---:|---:|---:|
+| Congestion resolved in the day-ahead market | 0 of 14.6 TWh | 12.4 TWh | 14.5 TWh |
+| Congestion left to TEİAŞ redispatch | 14.6 TWh | 2.1 TWh | ~0.1 TWh |
+| Unplanned wind and solar curtailment | ~6.2 TWh | 0.9 TWh | 0.2 TWh |
+| Total wind and solar curtailment | 6.2 TWh | ~6.0 TWh | 4.9 TWh |
+| Generator revenue | 100% | 89% | 74% |
+| Producer surplus | 100% | 86% | 62% |
+| Consumer surplus | 100% | 134% | 187% |
+| Total welfare | 100% | 109% | 123% |
+
+In the report's words, the welfare gain comes from "more efficient utilization of transmission capacity, a significant reduction in operational balancing instructions (YAL/YAT) costs, and enhanced market transparency". The gain grows with renewables: in the Reference scenario nodal pricing adds only about 9%. Most of it comes from having locational prices at all. Splitting the country into six zones instead of three adds just 1.2%.
+
+On batteries, the Net Zero scenario assumes 7.2 GW / 28.8 GWh of four-hour storage. Left in the same places, the fleet makes 42% more profit under nodal prices than under the national price, because a single price gives little spread to trade on. If the same 7.2 GW is moved to the nodes with the strongest price signals, profit rises to 48% above the national case. The batteries then sit around İzmir, Bursa, Antalya and Marmara, where daily price swings are widest, and few go east.
+
+The report also looks at Thrace directly. On a representative July day at 14:00 in 2035, Thrace needs 18.1 GW, but the lines from Anatolia can carry 13 GW, so about 5 GW has to come from local plants or from Europe. Thrace's thermal plants are generally among the expensive ones at the top of the merit order (full report, Figure 60). Under a national price, TEİAŞ curtails cheaper Anatolian output and keeps these plants running through redispatch. When cross-border capacity with Europe is raised to 6.5 GW in a sensitivity case, congestion between Thrace and Anatolia almost disappears. Beyond that point more interconnection helps less and less, and the internal grid becomes the limit.
+
+New lines would not fix this on their own. SHURA's grid model already includes TEİAŞ's planned investments plus extra 380 kV and 154 kV reinforcements, and the Net Zero case still ends with 14.6 TWh of congestion. Lines take years to build, solar plants take months. Locational prices would also show where a new line is worth the most, which helps decide where to build next.
+
+## What SHURA recommends
+
+SHURA recommends moving to locational prices in phases, with protection for those who would lose out:
+
+1. **A phased transition.** Either nodal prices for generators first, with consumers on a national price until metering improves, or about five or six zones first and nodal prices after a few years of experience.
+2. **Support for high-price regions.** Targeted help for vulnerable households and strategic industries, which the congestion revenue from locational pricing could fund. Investment incentives and regional development funds could move electricity-intensive industry to low-price regions, or new renewables to high-price ones.
+3. **Temporary protection for generators.** A revenue stabilisation mechanism for existing plants. Contracts for difference and feed-in premiums can continue, but SHURA says they "should not fully isolate generators from locational price signals", or siting decisions will not change.
+4. **Narrower capacity payments.** Broad capacity payments should shrink, and what remains should go to flexibility such as storage.
+5. **Hedging tools.** Financial Transmission Rights (FTRs) and Congestion Revenue Rights (CRRs), so generators and large consumers can protect themselves against price differences between nodes.
+6. **Demand-side flexibility.** Consumers in high-price regions would have a reason to shift or cut load at peak, and aggregators could sell that flexibility.
+7. **The groundwork.** Publish congestion and system-cost data, build the IT for hourly nodal clearing, update the balancing and settlement rules, and coordinate with YEKDEM, YEKA and market coupling with Europe at the Thrace border.
+
+Open congestion data, the first part of point 7, is what made this analysis possible.
+
+## Notes on the data
+
+- **The constraint label.** Every balancing instruction carries a label. Under the Balancing and Settlement Regulation, label 0 is energy balancing, 1 is grid constraints and 2 is ancillary services. I use the label as EPİAŞ publishes it (the "1 kodlu YAL/YAT" columns). Two checks support reading it as the constraint label: since 2018, monthly label-1 up-regulation moves closely with EPİAŞ's congestion cost (correlation 0.84) while label-0 volumes do not (−0.31), and in months with almost no label-1 up-regulation the congestion cost is close to zero. EPİAŞ has not yet confirmed the definition.
+- **Down-instructions.** The matching down-instructions in Anatolia mostly carry label 0. Total down-regulation in May was 3.1 TWh, but only 27 GWh had the constraint label. The label shows the expensive side of redispatch clearly and hides most of the curtailment side.
+- **Congestion cost** is EPİAŞ's published figure by province, at system marginal prices. Its exact definition and reference price are still to be confirmed.
+- **SHURA's numbers** are model results for 2035, with assumptions as of December 2024, not forecasts of today's market.
+
+## Sources
+
+- SHURA Energy Transition Center (June 2026). *Enerji Dönüşümünde Şebeke ve Piyasa Uyumu için Konumsal Marjinal Fiyatlandırma* (full report, Turkish) and *Locational Marginal Pricing for Grid and Market Alignment in the Energy Transition* (executive summary). [shura.org.tr](https://shura.org.tr)
+- EPİAŞ Şeffaflık Platformu: prices, generation, balancing instructions and congestion cost, processed in this site's [data pages](/data/turkiye/balancing.qmd) and [repository](https://github.com/mervebozkurt35/tr-power-lab), through 31 October 2026.
+- [Ember, Türkiye Electricity Review 2026](https://ember-energy.org/latest-insights/turkiye-electricity-review-2026/wind-and-solar) and [Rüzgar ve güneş Türkiye'de ilk kez kömürü geride bıraktı](https://ember-energy.org/tr/guncellemeler/ruzgar-ve-gunes-turkiyede-ilk-kez-komuru-geride-birakti/)
+- [Enerji Ajansı, Türkiye'nin kurulu gücü (September 2026)](https://enerjiajansi.com.tr/turkiyenin-kurulu-gucu/)
+- [GENSED, İllere göre lisanssız GES kurulu gücü (July 2025)](https://gensed.org/illere-gore-lisanssiz-ges-kurulu-gucu/)
+- [Forbes Türkiye, TÜREB wind statistics (February 2026)](https://www.forbes.com.tr/surdurulebilirlik/turkiye-ruzgarda-kapasite-artisini-surdurdu)
+- [TÜİK provincial GDP 2024, via Alomaliye](https://www.alomaliye.com/2025/12/11/il-bazinda-gayrisafi-yurt-ici-hasila-2024/)
+- Province boundaries: © OpenStreetMap contributors, ODbL, via [cihadturhan/tr-geojson](https://github.com/cihadturhan/tr-geojson)
