@@ -23,7 +23,7 @@ TR Power Lab tracks Türkiye's electricity market with public data. It turns hou
 ::: {.tile-grid}
 ::: {.tile}
 ### [Data](data/turkiye/index.qmd)
-Prices, generation and demand since 2011, with monthly and yearly trends and downloads.
+Prices, generation and demand since 2011, with monthly and yearly trends.
 :::
 
 ::: {.tile}
