@@ -2,6 +2,9 @@
 # then build the site and publish it. One workflow does all of it because a commit made with the
 # built-in token does not start the "Publish site" workflow.
 #
+# This repository is private. The rendered site (HTML only) is pushed to the public repository
+# mervebozkurt35/trpowerlab-site, which GitHub Pages serves at trpowerlab.com. Needs the secret SITE_DEPLOY_TOKEN.
+#
 # If a series fails, its old rows stay in place, the rest of the data is still committed and published,
 # and the run is marked as failed at the end so GitHub sends an email.
 name: Update data and publish
@@ -15,15 +18,14 @@ on:
         description: "Commit the new data and publish the site (untick for a trial that changes nothing)"
         type: boolean
         default: true
-      deep:
-        description: "Refresh the last 6 months instead of 2 (also done automatically on the 1st of each month)"
-        type: boolean
-        default: false
+      mode:
+        description: "How far back to rewrite (auto: last 2 months on the 1st, last 7 days on Mondays, only the new day otherwise)"
+        type: choice
+        options: [auto, daily, weekly, monthly, deep]
+        default: auto
 
 permissions:
   contents: write               # push the data commit
-  pages: write                  # publish to GitHub Pages
-  id-token: write               # needed by the Pages deploy step
 
 concurrency:
   group: pages                  # shares the lock with "Publish site": never two publishes at once
@@ -54,11 +56,9 @@ jobs:
         env:
           EPTR_USERNAME: ${{ secrets.EPTR_USERNAME }}
           EPTR_PASSWORD: ${{ secrets.EPTR_PASSWORD }}
-          DEEP_INPUT: ${{ inputs.deep }}
-        run: |
-          DEEP=""
-          if [ "$DEEP_INPUT" = "true" ] || [ "$(TZ=Europe/Istanbul date +%d)" = "01" ]; then DEEP="--deep"; fi
-          python scripts/update_data.py $DEEP
+          MODE_INPUT: ${{ inputs.mode }}
+          PYTHONUNBUFFERED: "1"          # show the log while the step runs
+        run: python scripts/update_data.py --mode "${MODE_INPUT:-auto}"
 
       - name: Build the overview of the latest day
         if: always()
@@ -102,23 +102,43 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.write
         run: quarto render
 
-      - name: Upload the rendered site
+      - name: Keep the rendered site for the publish job
         if: github.event_name != 'workflow_dispatch' || inputs.write
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: site
           path: _site
+          retention-days: 1
 
   deploy:
     needs: build
     if: github.event_name != 'workflow_dispatch' || inputs.write
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Get the rendered site
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: _site
+
+      - name: Publish the rendered site to the public repository
+        env:
+          SITE_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+          SITE_REPO: mervebozkurt35/trpowerlab-site
+          SITE_DOMAIN: trpowerlab.com
+        run: |
+          set -e
+          if [ -z "$SITE_TOKEN" ]; then echo "::error::The secret SITE_DEPLOY_TOKEN is missing."; exit 1; fi
+          cd _site
+          touch .nojekyll
+          echo "$SITE_DOMAIN" > CNAME
+          git init -q -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Site build $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git remote add origin "https://x-access-token:${SITE_TOKEN}@github.com/${SITE_REPO}.git"
+          git push --force origin main        # one commit only: the public repository never keeps a history
 
   # Sends the overview of the latest day by e-mail once the site is published (or straight away in a trial run).
   # Needs the secrets MAIL_USERNAME and MAIL_APP_PASSWORD (and optionally MAIL_TO); without them it does nothing.
