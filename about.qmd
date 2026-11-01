@@ -1,20 +1,36 @@
 ---
-title: "About"
-toc: false
+title: "Why I built TR Power Lab"
+author: "Merve Bozkurt"
+date: 2026-11-01
+categories: [news]
+description: "A public data site on Türkiye's electricity market: what it shows today, why it exists and what comes next."
 ---
 
-TR Power Lab is an independent project on Türkiye's electricity market. It publishes market data, monthly analysis, tools and lessons, all built on public sources.
+Türkiye's electricity market publishes plentiful amount of data. EPİAŞ's transparency platform carries hourly prices, generation, consumption, balancing and more, and the rules behind them come from EPDK and a long list of regulations and board decisions. In my experience, the numbers are easy to find but harder to turn into a clear picture and interpret. I have encountered few articles or recent market analysis from energy economics point of view in Türkiye especially when you want to see how the market has moved over several years. I am desinging this page first in English to reach out more people but in later phases I am planning to translate everything to Turkish for inclusivity to my native and non-english-speaker colleagues.
 
-## Who runs it
+TR Power Lab is my attempt to close the gap in Turkish electricity market. It is an independent project, built on public sources, and it is not affiliated with EPİAŞ, TEİAŞ or EPDK. I learn, play and try to transfer my knowledge and expertise in here. I am happy to hear your comments through my mail adress or with a message from linkedin!
 
-I am Merve Bozkurt, an energy economist. I hold an MSc in the Economics of Energy, Climate Change and Sustainability from the Barcelona School of Economics. My work focuses on electricity markets, market design and the economics of storage and renewables.
+## What the site shows today
 
-You can find me on [LinkedIn](https://www.linkedin.com/in/merve-bozkurt/).
+- **Data.** Prices, generation and demand, price volatility, natural gas, balancing instructions and neighbouring markets. The data are refreshed automatically from EPİAŞ's transparency platform, and each page states the date its data run to.
+- **Regulation.** A timeline of the main market rules and a guide to the institutions behind them, with the sources and method explained.
+- **Blog.** Longer pieces that use the data to answer one question. The first is about [what the end of the universal electricity subsidy means for Türkiye's households](../2026-11-subsidy/index.qmd).
+- **Methodology.** How each series is built and what each source covers, so you can judge for yourself how far to trust a chart.
 
-## Contact
+## Why public analysis matters
 
-Email: [main@trpowerlab.com](mailto:main@trpowerlab.com)
+A chart is only useful if you can tell where its numbers come from. Every page here names its source, and the [methodology](../../methodology.qmd) page explains how the series are put together. If you find something that looks wrong, I would like to hear about it. Corrections make the site better, and they are part of why it is public.
 
-LinkedIn: [Merve Bozkurt](https://www.linkedin.com/in/merve-bozkurt/)
+## What comes next
 
-Corrections and questions about the data are welcome.
+These are plans, not promises, and the dates may move:
+
+- **Monthly reports.** The first issue, covering October 2026, is planned for mid November. It will cover prices, the gap between the day ahead and intraday markets, battery spreads, solar capture prices and system direction.
+- **Tools.** Calculators that run in your browser, such as a battery revenue calculator and an imbalance cost calculator, are planned for spring 2027.
+- **Learn.** Short lessons on how the Turkish market works, from the day ahead market to imbalance settlement, are planned from January 2027.
+
+## Who I am and how to reach me
+
+I am Merve, an energy economist with an MSc in the Economics of Energy, Climate Change and Sustainability from the Barcelona School of Economics. I am also Mechanical Engineer graduate from Bogazici University. My interests are electricity markets, market design and the economics of storage and renewables.
+
+You can write to me at [main@trpowerlab.com](mailto:main@trpowerlab.com) or find me on [LinkedIn](https://www.linkedin.com/in/merve-bozkurt/). If you work in or follow the Turkish power market and something here is useful, or wrong, please tell me.
