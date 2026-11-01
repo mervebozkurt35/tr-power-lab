@@ -6,9 +6,9 @@ categories: [news]
 description: "A public data site on Türkiye's electricity market: what it shows today, why it exists and what comes next."
 ---
 
-Türkiye's electricity market publishes a lot of data. EPİAŞ's transparency platform carries hourly prices, generation, consumption, balancing and more, and the rules behind them come from EPDK and a long list of regulations and board decisions. In my experience, the numbers are easy to find but harder to turn into a clear picture, especially in English and especially when you want to see how the market has moved over several years.
+Türkiye's electricity market publishes plentiful amount of data. EPİAŞ's transparency platform carries hourly prices, generation, consumption, balancing and more, and the rules behind them come from EPDK and a long list of regulations and board decisions. In my experience, the numbers are easy to find but harder to turn into a clear picture and interpret. I have encountered few articles or recent market analysis from energy economics point of view in Türkiye especially when you want to see how the market has moved over several years. I am desinging this page first in English to reach out more people but in later phases I am planning to translate everything to Turkish for inclusivity to my native and non-english-speaker colleagues.
 
-TR Power Lab is my attempt to close that gap. It is an independent project, built on public sources, and it is not affiliated with EPİAŞ, TEİAŞ or EPDK.
+TR Power Lab is my attempt to close the gap in Turkish electricity market. It is an independent project, built on public sources, and it is not affiliated with EPİAŞ, TEİAŞ or EPDK. I learn, play and try to transfer my knowledge and expertise in here. I am happy to hear your comments through my mail adress or with a message from linkedin!
 
 ## What the site shows today
 
@@ -31,6 +31,6 @@ These are plans, not promises, and the dates may move:
 
 ## Who I am and how to reach me
 
-I am Merve, an energy economist with an MSc in the Economics of Energy, Climate Change and Sustainability from the Barcelona School of Economics. My interests are electricity markets, market design and the economics of storage and renewables.
+I am Merve, an energy economist with an MSc in the Economics of Energy, Climate Change and Sustainability from the Barcelona School of Economics. I am also Mechanical Engineer graduate from Bogazici University. My interests are electricity markets, market design and the economics of storage and renewables.
 
 You can write to me at [main@trpowerlab.com](mailto:main@trpowerlab.com) or find me on [LinkedIn](https://www.linkedin.com/in/merve-bozkurt/). If you work in or follow the Turkish power market and something here is useful, or wrong, please tell me.
