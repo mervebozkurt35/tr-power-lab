@@ -1,4 +1,6 @@
-# Builds the Quarto site and publishes it to GitHub Pages on every push to main.
+# Builds the Quarto site on every push to main and publishes the rendered HTML to the public repository
+# mervebozkurt35/trpowerlab-site, which GitHub Pages serves at trpowerlab.com. This repository stays private.
+# Needs the secret SITE_DEPLOY_TOKEN.
 name: Publish site
 
 on:
@@ -8,12 +10,10 @@ on:
 
 permissions:
   contents: read          # read the repository
-  pages: write            # publish to GitHub Pages
-  id-token: write         # needed by the Pages deploy step
 
 concurrency:
   group: pages            # never run two publishes at once
-  cancel-in-progress: false
+  cancel-in-progress: false   # a publish is never cancelled by a newer commit
 
 jobs:
   build:
@@ -36,18 +36,39 @@ jobs:
       - name: Render the site
         run: quarto render
 
-      - name: Upload the rendered site
-        uses: actions/upload-pages-artifact@v3
+      - name: Keep the rendered site for the publish job
+        uses: actions/upload-artifact@v4
         with:
+          name: site
           path: _site
+          retention-days: 1
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Get the rendered site
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: _site
+
+      - name: Publish the rendered site to the public repository
+        env:
+          SITE_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+          SITE_REPO: mervebozkurt35/trpowerlab-site
+          SITE_DOMAIN: trpowerlab.com
+        run: |
+          set -e
+          if [ -z "$SITE_TOKEN" ]; then echo "::error::The secret SITE_DEPLOY_TOKEN is missing."; exit 1; fi
+          cd _site
+          touch .nojekyll
+          echo "$SITE_DOMAIN" > CNAME
+          git init -q -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Site build $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git remote add origin "https://x-access-token:${SITE_TOKEN}@github.com/${SITE_REPO}.git"
+          git push --force origin main        # one commit only: the public repository never keeps a history
+
