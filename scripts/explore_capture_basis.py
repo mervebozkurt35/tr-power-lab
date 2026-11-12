@@ -114,7 +114,7 @@ def analyse(h: pd.DataFrame) -> dict[str, pd.DataFrame]:
             out[f"capture_{tag}_tl"] = g[f"w_ptf_{tag}"].sum(min_count=1).where(solar.notna()) / solar
             out[f"capture_{tag}_eur"] = g[f"w_eur_{tag}"].sum(min_count=1).where(solar.notna()) / solar
             out[f"capture_rate_{tag}"] = out[f"capture_{tag}_tl"] / out["ptf_mean"]
-            out[f"zero_price_share_{tag}"] = g[f"zero_{tag}"].sum(min_count=1).where(solar.notna()) / solar
+            out[f"zero_price_share_{tag}"] = g[f"zero_{tag}"].sum().where(solar.notna()) / solar  # no zero-price hours = 0, not empty
         return out
 
     day = h.index.tz_localize(None).normalize()
@@ -199,7 +199,7 @@ def summary(res: dict, h: pd.DataFrame, start: date, end: date) -> str:
              f"Hours downloaded: {len(h):,}. Hours with all-solar value: {int((h['solar_metered'] + h['solar_ul']).notna().sum()):,}. "
              f"Hours with AOF: {int(h['aof'].notna().sum()):,}.", "",
              "Last 12 months (rates and shares in %; empty = unlicensed solar not published yet):", "",
-             t.to_markdown(floatfmt=".0f", missingval="-"), ""]
+             t.apply(lambda c: c.map(lambda v: "-" if pd.isna(v) else f"{v:,.0f}")).to_markdown(), ""]
     if FAILED:
         lines += ["## Downloads that failed", "", *[f"- {f}" for f in FAILED], ""]
     return "\n".join(lines)
