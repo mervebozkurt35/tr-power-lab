@@ -1,0 +1,57 @@
+# Manual run only: downloads hourly prices and solar from EPİAŞ, then makes the solar capture price
+# and the GÖP to GİP basis files and charts. Nothing is committed and the site is not touched.
+# Result: open the finished run, scroll to "Artifacts", download "capture-basis" and open the .html files.
+name: Explore capture price and basis
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "First day (YYYY-MM-DD)"
+        default: "2021-01-01"
+      end:
+        description: "Last day (YYYY-MM-DD). Leave empty for yesterday"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  explore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Run the exploration
+        env:
+          EPTR_USERNAME: ${{ secrets.EPTR_USERNAME }}
+          EPTR_PASSWORD: ${{ secrets.EPTR_PASSWORD }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          ARGS="--start $START"
+          if [ -n "$END" ]; then ARGS="$ARGS --end $END"; fi
+          python scripts/explore_capture_basis.py $ARGS
+
+      - name: Show the summary on the run page
+        if: always()
+        run: |
+          if [ -f explore_out/summary.md ]; then cat explore_out/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Keep the files and charts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-basis
+          path: explore_out
+          if-no-files-found: ignore
