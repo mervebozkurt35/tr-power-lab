@@ -6,10 +6,10 @@
     },
     "core_daily.csv": {
       "level": "ok",
-      "rows": 5491,
+      "rows": 5492,
       "added": 1,
       "changed": 0,
-      "last": "2026-11-12",
+      "last": "2026-11-13",
       "lag_days": 0
     },
     "core_monthly.csv": {
@@ -21,10 +21,10 @@
     },
     "gas_daily.csv": {
       "level": "ok",
-      "rows": 3021,
+      "rows": 3022,
       "added": 1,
       "changed": 0,
-      "last": "2026-11-12",
+      "last": "2026-11-13",
       "lag_days": 0
     },
     "gas_monthly.csv": {
@@ -36,10 +36,10 @@
     },
     "balancing_daily.csv": {
       "level": "ok",
-      "rows": 5491,
+      "rows": 5492,
       "added": 1,
       "changed": 0,
-      "last": "2026-11-12",
+      "last": "2026-11-13",
       "lag_days": 0
     },
     "balancing_monthly.csv": {
@@ -51,18 +51,18 @@
     },
     "wind_daily.csv": {
       "level": "ok",
-      "rows": 2810,
+      "rows": 2811,
       "added": 1,
       "changed": 0,
-      "last": "2026-11-12",
+      "last": "2026-11-13",
       "lag_days": 0
     },
     "load_plan_daily.csv": {
       "level": "ok",
-      "rows": 5490,
+      "rows": 5491,
       "added": 1,
       "changed": 0,
-      "last": "2026-11-12",
+      "last": "2026-11-13",
       "lag_days": 0
     },
     "ul_gen_daily.csv": {
@@ -88,47 +88,37 @@
     },
     "congestion_province_monthly.csv": {
       "revisions": {
-        "values": 8,
-        "keys": 2,
+        "values": 4,
+        "keys": 1,
         "first": "2026-11|ÇANAKKALE",
-        "last": "2026-11|İSTANBUL-AVRUPA",
+        "last": "2026-11|ÇANAKKALE",
         "by_column": {
-          "mcp_total_tl": {
-            "values": 2,
-            "days": 2,
-            "max_abs_pct": 26.9
-          },
-          "smp_total_tl": {
-            "values": 2,
-            "days": 2,
-            "max_abs_pct": 11.1
-          },
           "mcp_down_tl": {
             "values": 1,
             "days": 1,
-            "max_abs_pct": 72.9
+            "max_abs_pct": 54.1
           },
-          "mcp_up_tl": {
+          "mcp_total_tl": {
             "values": 1,
             "days": 1,
-            "max_abs_pct": 26.9
+            "max_abs_pct": 14.4
           },
           "smp_down_tl": {
             "values": 1,
             "days": 1,
-            "max_abs_pct": 128.3
+            "max_abs_pct": 38.6
           },
-          "smp_up_tl": {
+          "smp_total_tl": {
             "values": 1,
             "days": 1,
-            "max_abs_pct": 11.1
+            "max_abs_pct": 4.1
           }
         }
       },
       "level": "ok",
       "rows": 11726,
       "added": 0,
-      "changed": 2,
+      "changed": 1,
       "last": "2026-11"
     },
     "line_capacity_daily.csv": {
@@ -138,7 +128,7 @@
     "line_events.csv": {
       "level": "ok",
       "rows": 1053,
-      "added": 1,
+      "added": 0,
       "changed": 1,
       "last": "2026-11-12"
     },
@@ -146,7 +136,7 @@
       "level": "ok",
       "rows": 127,
       "added": 0,
-      "changed": 0,
+      "changed": 1,
       "last": "2026-11"
     }
   },
@@ -157,21 +147,25 @@
   "mode": "daily",
   "notes": [
     "ptf: 18 hours with PTF = 0 (allowed, kept).",
+    "consumption: 5 missing hours on 1 days (2026-11-13). Left as gaps, not filled.",
+    "consumption: consumption is empty in 5 hours (includes any missing hours above).",
+    "generation: 5 missing hours on 1 days (2026-11-13). Left as gaps, not filled.",
     "generation: EPİAŞ total matches sources plus net imports in 100.0% of hours.",
+    "generation: total is empty in 5 hours (includes any missing hours above).",
     "bilateral_euas: raw columns ['date', 'contractAmount']; using date = 'date', quantity = 'contractAmount'."
   ],
-  "checked": "2026-11-13 14:34",
+  "checked": "2026-11-14 13:56",
   "timezone": "Europe/Istanbul",
-  "yesterday": "2026-11-12",
+  "yesterday": "2026-11-13",
   "data_through": {
-    "core_daily.csv": "2026-11-12",
+    "core_daily.csv": "2026-11-13",
     "core_monthly.csv": "2026-11",
-    "gas_daily.csv": "2026-11-12",
+    "gas_daily.csv": "2026-11-13",
     "gas_monthly.csv": "2026-11",
-    "balancing_daily.csv": "2026-11-12",
+    "balancing_daily.csv": "2026-11-13",
     "balancing_monthly.csv": "2026-11",
-    "wind_daily.csv": "2026-11-12",
-    "load_plan_daily.csv": "2026-11-12",
+    "wind_daily.csv": "2026-11-13",
+    "load_plan_daily.csv": "2026-11-13",
     "ul_gen_daily.csv": "2026-09-30",
     "ul_gen_monthly.csv": "2026-09",
     "congestion_monthly.csv": "2026-11",
