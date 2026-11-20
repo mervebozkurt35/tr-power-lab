@@ -65,7 +65,7 @@ HTML('<div class="tile-grid">' + "".join(
 
 ## What the instructions are
 
-After the day-ahead and intraday markets close, the system operator (TEİAŞ) keeps supply and demand in balance in real time. When the system is short of energy it orders plants to produce more, an up-regulation instruction (YAL). When the system has too much it orders plants to produce less, a down-regulation instruction (YAT). Every instruction carries a label. According to the Balancing and Settlement Regulation, label 0 is for balancing energy, label 1 for relieving constraints in the transmission grid, and label 2 for ancillary services such as frequency control. We use the label published with each instruction; we have yet to confirm with EPİAŞ that the published code is this label.
+After the day-ahead and intraday markets close, the system operator (TEİAŞ) keeps supply and demand in balance in real time. When the system is short of energy it orders plants to produce more, an up-regulation instruction (YAL). When the system has too much it orders plants to produce less, a down-regulation instruction (YAT). Every instruction carries a label. According to the Balancing and Settlement Regulation, label 0 is for balancing energy, label 1 for relieving constraints in the transmission grid, and label 2 for ancillary services such as frequency control. I use the label published with each instruction; I have yet to confirm with EPİAŞ that the published code is this label.
 
 The grid-constraint label matters for cost. A plant ordered up for a constraint is paid the price it offered, whatever the day-ahead price was. The share of instructions carrying label 1 therefore shows how much of balancing is about where electricity is produced, not about how much. Volumes below are the energy instructed; the bottom of the page shows how much was delivered.
 
@@ -197,7 +197,7 @@ cong_txt = (f"EPİAŞ also publishes a congestion cost by province. Its national
             f"and about {ct[cy_]:.1f} billion TL in {cy_} so far; the highest month of {cy_} was {pd.Timestamp(cm_ + '-01'):%B} "
             f"({cg.loc[cm_, 'smp_total_tl'] / 1e9:.1f} billion TL)"
             + (f", when {cm_share:.0f}% of up-regulation carried label 1" if pd.notna(cm_share) else "")
-            + ". We do not show it on this page because its exact definition and reference price are still to be confirmed.")
+            + ". I do not show it on this page because its exact definition and reference price are still to be confirmed.")
 l2 = d.index[(d["up_code2_mwh"] + d["down_code2_mwh"]) > 0]
 l2_txt = f"Label 2 last appears in the data on {l2.max():%d %B %Y}." if len(l2) else "Label 2 does not appear in the data."
 ```

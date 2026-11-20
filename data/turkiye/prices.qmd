@@ -251,7 +251,7 @@ The day-ahead market is where the reference price is set, but most electricity i
 
 Offers and prices in the day-ahead market must stay between a minimum and a maximum set by the regulator, EPDK. The minimum has always been zero. The maximum has changed many times; the balancing market (SMF) works under the same limits. Both are published in the Official Gazette.
 
-**Why a cap?** The decisions we read state the limit but not the reasoning, so this part is our reading of press reports and of the market's structure. A cap limits what one hour can cost buyers when supply is tight, when a few large plants set the price, or when gas costs jump with the exchange rate. Until spring 2022 the cap followed a formula: three times the trailing twelve-month weighted average PTF, and at most 2,000 TL/MWh, so it rose as prices rose. Since 1 April 2022 it is a fixed amount in lira that the board changes by decision.
+**Why a cap?** The decisions I read state the limit but not the reasoning, so this part is my reading of press reports and of the market's structure. A cap limits what one hour can cost buyers when supply is tight, when a few large plants set the price, or when gas costs jump with the exchange rate. Until spring 2022 the cap followed a formula: three times the trailing twelve-month weighted average PTF, and at most 2,000 TL/MWh, so it rose as prices rose. Since 1 April 2022 it is a fixed amount in lira that the board changes by decision.
 
 **Why a floor at zero?** Bids below zero are not accepted, so the price cannot go negative. Most European day-ahead markets allow negative prices, with a harmonised minimum of −500 EUR/MWh in the coupled EU market at the time of writing (a regulatory limit that can change). In Türkiye the decisions simply state a minimum of 0. When must-run and renewable output exceeds demand, the price sits at zero, so zero-price hours show that there is a surplus but not how large it is.
 
@@ -363,7 +363,7 @@ yt.index = [f"{y} (to {last:%d %b})" if y == last.year else (f"{y} (from 1 Apr)"
 Markdown(yt.to_markdown(disable_numparse=True, colalign=["left"] + ["right"] * len(yt.columns)))
 ```
 
-Before 1 April 2022 the cap was formula-based, so the fixed-cap table above does not reach back further. The monthly maximum prices of July 2021 to March 2022 rise in steps (617, 636, 674, 718 and then 1,078 to 1,745 TL/MWh) and equal the daily maximum on most days, which fits a cap that was rebuilt each month; we have not verified the formula's start date, so hours at the cap are not counted for that period.
+Before 1 April 2022 the cap was formula-based, so the fixed-cap table above does not reach back further. The monthly maximum prices of July 2021 to March 2022 rise in steps (617, 636, 674, 718 and then 1,078 to 1,745 TL/MWh) and equal the daily maximum on most days, which fits a cap that was rebuilt each month; I have not verified the formula's start date, so hours at the cap are not counted for that period.
 
 ```{python}
 #| label: limits-monthly-tables

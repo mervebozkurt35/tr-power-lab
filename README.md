@@ -1,6 +1,6 @@
 # TR Power Lab
 
-Data and analysis on Türkiye's electricity market: prices, generation, monthly reports, tools and lessons, built on public data with open code.
+Data and analysis on Türkiye's electricity market: prices, generation and articles, built on public data with open code.
 
 Website: https://mervebozkurt35.github.io/tr-power-lab/ (later trpowerlab.com)
 
@@ -8,7 +8,7 @@ Website: https://mervebozkurt35.github.io/tr-power-lab/ (later trpowerlab.com)
 
 | Folder | Contents |
 |---|---|
-| `data/turkiye/`, `reports/`, `articles/`, `tools/`, `learn/` | Website pages, written in Quarto (`.qmd`) |
+| `data/`, `regulation/`, `articles/` | Website pages, written in Quarto (`.qmd`) |
 | `assets/` | Site theme: colours and fonts |
 | `scripts/` | Python scripts that download and process data |
 | `notebooks/` | Exploratory Colab notebooks |

@@ -80,7 +80,7 @@ HTML('<div class="tile-grid">' + "".join(
 
 ## The spot gas price
 
-The spot gas market (organised by EPİAŞ) trades gas for delivery on the day it is traded and the day after. The reference price, GRF, is the volume-weighted average of its day-ahead and intraday matches. Prices are published in lira per 1,000 standard cubic metres (Sm³). We also show them per megawatt-hour of gas, in euros and in US dollars per MMBtu, the unit of international gas prices. The conversion to energy uses a gross calorific value of 9,155 kcal/Sm³ (1,000 Sm³ = 10.65 MWh), and euro and dollar values use the exchange rate implied by EPİAŞ's own power prices for each day, so they differ slightly from EPİAŞ's own conversions. Use the buttons to change the time step, the unit and the range.
+The spot gas market (organised by EPİAŞ) trades gas for delivery on the day it is traded and the day after. The reference price, GRF, is the volume-weighted average of its day-ahead and intraday matches. Prices are published in lira per 1,000 standard cubic metres (Sm³). I also show them per megawatt-hour of gas, in euros and in US dollars per MMBtu, the unit of international gas prices. The conversion to energy uses a gross calorific value of 9,155 kcal/Sm³ (1,000 Sm³ = 10.65 MWh), and euro and dollar values use the exchange rate implied by EPİAŞ's own power prices for each day, so they differ slightly from EPİAŞ's own conversions. Use the buttons to change the time step, the unit and the range.
 
 ```{python}
 #| label: gas-chart
@@ -142,14 +142,14 @@ txt = (f"The spot price peaked in {pk:%B %Y} at {monthly.loc[pk, 'sgp_wavg_eur_m
        f"({monthly.loc[pk, 'sgp_wavg']:,.0f} TL per 1,000 Sm³), {monthly.loc[pk, 'sgp_wavg_eur_mwh'] / y.loc['2021-01-01']:.1f} times the 2021 average. "
        f"Over the last twelve months the daily price ranged between {l12['sgp_wavg'].min():,.0f} and "
        f"{l12['sgp_wavg'].max():,.0f} TL per 1,000 Sm³, and the median change from one day to the next was {daily_move:.1f}%. "
-       "One possible reason for such small moves is a link to BOTAŞ's regulated tariff; we have not checked this. "
+       "One possible reason for such small moves is a link to BOTAŞ's regulated tariff; I have not checked this. "
        "In euros the price also changes with the exchange rate.")
 Markdown(txt)
 ```
 
 ## Gas and power prices
 
-Gas-fired plants often set the price of electricity in Türkiye, so the price of gas is a first guide to the price of power. The chart puts the monthly average day-ahead power price (PTF) next to the spot gas price, both in euros per megawatt-hour. Our data does not show which plant sets the price in each hour, so the chart shows how closely the two move together, not that gas sets the price. A power price above the gas price is expected: a gas plant needs more than one megawatt-hour of gas to produce one megawatt-hour of electricity, and has other costs. PTF is also cut off by the price cap and the floor at zero.
+Gas-fired plants often set the price of electricity in Türkiye, so the price of gas is a first guide to the price of power. The chart puts the monthly average day-ahead power price (PTF) next to the spot gas price, both in euros per megawatt-hour. The data here does not show which plant sets the price in each hour, so the chart shows how closely the two move together, not that gas sets the price. A power price above the gas price is expected: a gas plant needs more than one megawatt-hour of gas to produce one megawatt-hour of electricity, and has other costs. PTF is also cut off by the price cap and the floor at zero.
 
 ```{python}
 #| label: gas-power-chart

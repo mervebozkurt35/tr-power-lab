@@ -6,7 +6,6 @@ listing:
   id: latest
   contents:
     - "articles/*/index.qmd"
-    - "reports/*/index.qmd"
   sort: "date desc"
   type: table
   max-items: 5
@@ -36,10 +35,6 @@ A timeline of the main market rules and a guide to the institutions behind them.
 Longer pieces that use the data to answer one question.
 :::
 :::
-
-## Coming next
-
-Monthly reports, calculators and short lessons are planned for the coming quarters. The dates are on the [About page](about.qmd#what-comes-next).
 
 ## Latest
 

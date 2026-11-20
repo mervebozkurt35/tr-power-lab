@@ -31,7 +31,7 @@ Markdown(f"""
 Each card has one tag: **Liberalisation** (how the market was opened up), **Power market** (how electricity is priced, traded and settled),
 **Generation** (who may build and on what terms), **Grid and system operation** and **Market transition** (renewable reforms, storage, certificates, carbon pricing and electric vehicles).
 Laws and regulations appear only as small tags on a card, and each card says where it was read.
-The [method page](method.qmd) explains the source labels and what was not read, and [institutions](institutions.qmd) says who does what.
+The [method page](method.qmd) explains the source labels and what was not read, [institutions](institutions.qmd) says who does what, and the [legislation tree](tree.qmd) shows which instrument rests on which.
 """)
 ```
 

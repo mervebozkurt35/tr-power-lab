@@ -5,10 +5,7 @@ project:
   render:                  # only these files become pages (scripts and data are left alone)
     - "*.qmd"
     - "data/**/*.qmd"          # data pages live next to the data files; only .qmd files become pages
-    - "reports/**/*.qmd"
     - "articles/**/*.qmd"
-    - "tools/**/*.qmd"
-    - "learn/**/*.qmd"
     - "regulation/**/*.qmd"
 
 execute:
@@ -44,6 +41,8 @@ website:
             href: regulation/index.qmd
           - text: "Institutions"
             href: regulation/institutions.qmd
+          - text: "Legislation tree"
+            href: regulation/tree.qmd
           - text: "Method and sources"
             href: regulation/method.qmd
       - text: "Articles"
