@@ -1,4 +1,6 @@
 ---
+aliases:
+  - /blog/
 title: "Articles"
 listing:
   contents: "*/index.qmd"

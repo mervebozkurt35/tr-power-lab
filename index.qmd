@@ -5,7 +5,7 @@ toc: false
 listing:
   id: latest
   contents:
-    - "blog/*/index.qmd"
+    - "articles/*/index.qmd"
     - "reports/*/index.qmd"
   sort: "date desc"
   type: table
@@ -32,7 +32,7 @@ A timeline of the main market rules and a guide to the institutions behind them.
 :::
 
 ::: {.tile}
-### [Articles](blog/index.qmd)
+### [Articles](articles/index.qmd)
 Longer pieces that use the data to answer one question.
 :::
 :::

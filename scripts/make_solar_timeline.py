@@ -56,5 +56,5 @@ ax.text(2018.0,9.6,"Solar = licensed + unlicensed (incl. self-consumption surplu
 ax.text(2018.0,0.55,"TWh = yearly production; % = share in total generation. *2026: January to mid-November, not a full year.\n"
  "Source: EPİAŞ (EXIST)",
  fontsize=8.5,color=MUTE,va="center",linespacing=1.5)
-OUT = Path(__file__).resolve().parent.parent / "blog" / "2026-11-solar-market" / "images" / "solar_timeline.png"
+OUT = Path(__file__).resolve().parent.parent / "articles" / "2026-11-solar-market" / "images" / "solar_timeline.png"
 plt.savefig(OUT,bbox_inches="tight",facecolor="white")

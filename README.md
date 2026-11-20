@@ -8,7 +8,7 @@ Website: https://mervebozkurt35.github.io/tr-power-lab/ (later trpowerlab.com)
 
 | Folder | Contents |
 |---|---|
-| `data/turkiye/`, `reports/`, `blog/`, `tools/`, `learn/` | Website pages, written in Quarto (`.qmd`) |
+| `data/turkiye/`, `reports/`, `articles/`, `tools/`, `learn/` | Website pages, written in Quarto (`.qmd`) |
 | `assets/` | Site theme: colours and fonts |
 | `scripts/` | Python scripts that download and process data |
 | `notebooks/` | Exploratory Colab notebooks |

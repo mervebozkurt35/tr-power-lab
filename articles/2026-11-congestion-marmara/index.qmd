@@ -1,4 +1,6 @@
 ---
+aliases:
+  - /blog/2026-11-congestion-marmara/
 title: "One price, two Türkiyes"
 subtitle: "Why keeping Marmara supplied got expensive in the months when electricity was cheapest"
 date: 2026-11-01

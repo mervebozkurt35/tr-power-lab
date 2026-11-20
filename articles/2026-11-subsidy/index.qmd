@@ -1,4 +1,6 @@
 ---
+aliases:
+  - /blog/2026-11-subsidy/
 title: "Türkiye's households and the end of the universal electricity subsidy"
 subtitle: "Pushed, not pulled"
 author: "Merve Bozkurt"

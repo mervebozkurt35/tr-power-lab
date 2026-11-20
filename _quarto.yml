@@ -6,7 +6,7 @@ project:
     - "*.qmd"
     - "data/**/*.qmd"          # data pages live next to the data files; only .qmd files become pages
     - "reports/**/*.qmd"
-    - "blog/**/*.qmd"
+    - "articles/**/*.qmd"
     - "tools/**/*.qmd"
     - "learn/**/*.qmd"
     - "regulation/**/*.qmd"
@@ -47,7 +47,7 @@ website:
           - text: "Method and sources"
             href: regulation/method.qmd
       - text: "Articles"
-        href: blog/index.qmd
+        href: articles/index.qmd
     right:
       - text: "Methodology"
         href: methodology.qmd

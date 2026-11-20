@@ -1,7 +1,7 @@
-"""Charts for the article blog/2026-11-solar-market (Why Is the Turkish Solar Market Alarming?).
+"""Charts for the article articles/2026-11-solar-market (Why Is the Turkish Solar Market Alarming?).
 
-Reads the two CSVs in blog/2026-11-solar-market/data/ and writes three PNGs to
-blog/2026-11-solar-market/images/. Run from anywhere:  python scripts/make_solar_article_charts.py
+Reads the two CSVs in articles/2026-11-solar-market/data/ and writes three PNGs to
+articles/2026-11-solar-market/images/. Run from anywhere:  python scripts/make_solar_article_charts.py
 (The timeline image is made separately; its PNG is already in images/.)
 """
 from pathlib import Path
@@ -14,7 +14,7 @@ import matplotlib.dates as mdates
 import matplotlib.ticker as mtick
 import pandas as pd
 
-POST = Path(__file__).resolve().parent.parent / "blog" / "2026-11-solar-market"
+POST = Path(__file__).resolve().parent.parent / "articles" / "2026-11-solar-market"
 DATA, OUT = POST / "data", POST / "images"
 OUT.mkdir(exist_ok=True)
 

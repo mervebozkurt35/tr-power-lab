@@ -1,4 +1,6 @@
 ---
+aliases:
+  - /blog/2026-11-solar-market/
 title: "Why Is the Turkish Solar Market Alarming?"
 description: "Solar's capture rate fell from 97% in 2021 to 69% in 2026, while the feed-in tariff now sits above its market value. What the 10-year rule means for Turkish solar, and why flexibility decides what comes next."
 author: "Merve Bozkurt"
