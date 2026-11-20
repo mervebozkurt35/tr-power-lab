@@ -11,7 +11,9 @@ name: Update data and publish
 
 on:
   schedule:
-    - cron: "37 3 * * *"        # 06:37 Istanbul time (UTC+3 all year), every day
+    - cron: "7 21 * * *"        # 00:07 Istanbul time (UTC+3 all year), every day. GitHub starts scheduled runs hours late
+                                # (about 7-9 hours when this was set to 06:37), so this is meant to land in the morning.
+                                # If runs start before 08:00 or after noon, adjust. Daily mode also redoes the day before.
   workflow_dispatch:
     inputs:
       write:
@@ -19,7 +21,7 @@ on:
         type: boolean
         default: true
       mode:
-        description: "How far back to rewrite (auto: last 2 months on the 1st, last 7 days on Mondays, only the new day otherwise)"
+        description: "How far back to rewrite (auto: last 2 months on the 1st, last 7 days on Mondays, the new day and the day before otherwise)"
         type: choice
         options: [auto, daily, weekly, monthly, deep]
         default: auto
