@@ -1,0 +1,13 @@
+commissioned_year,end_year_solar_mw,added_mw,support_ends_year,regime,cumulative_out_of_support_mw,note
+2014,40,40,2024,USD-fixed (Law 5346 Annex I),40,
+2015,249,209,2025,USD-fixed (Law 5346 Annex I),249,
+2016,833,584,2026,USD-fixed (Law 5346 Annex I),833,
+2017,3421,2588,2027,USD-fixed (Law 5346 Annex I),3421,
+2018,5063,1642,2028,USD-fixed (Law 5346 Annex I),5063,
+2019,5995,932,2029,USD-fixed (Law 5346 Annex I),5995,"one AA story gives 5,595; two give 5,995"
+2020,6667,672,2030,USD-fixed (Law 5346 Annex I),6667,
+2021,7816,1149,2031,mixed,7816,commissioned before 1 Jul 2021 = old USD regime (leaves 2031 H1); after = Decision 3453/7189 regime (leaves 2031 H2)
+2022,9425,1609,2032,TL YEKDEM (3453 / 7189),9425,
+2023,11316,1891,2033,TL YEKDEM (3453 / 7189),11316,
+2024,20099,8783,2034,TL YEKDEM (3453 / 7189),20099,"implied: 24,795 minus 4,696 added in 2025; Ember gives 19.8 GW; 2024 jump includes late registration of existing plants"
+2025,24795,4696,2035,TL YEKDEM (3453 / 7189),24795,
