@@ -11,7 +11,7 @@ TR Power Lab is my attempt to close that gap in the Turkish electricity market. 
 
 - **Data.** Prices, generation and demand, price volatility, natural gas, balancing instructions and neighbouring markets. The data are refreshed automatically from EPİAŞ's transparency platform, and each page states the date its data run to.
 - **Regulation.** A timeline of the main market rules and a guide to the institutions behind them, with the sources and method explained.
-- **Blog.** Longer pieces that use the data to answer one question. The first is about [what the end of the universal electricity subsidy means for Türkiye's households](blog/2026-11-subsidy/index.qmd).
+- **Articles.** Longer pieces that use the data to answer one question. The first is about [what the end of the universal electricity subsidy means for Türkiye's households](blog/2026-11-subsidy/index.qmd).
 - **Methodology.** How each series is built and what each source covers, so you can judge for yourself how far to trust a chart.
 
 ## Why public analysis matters
