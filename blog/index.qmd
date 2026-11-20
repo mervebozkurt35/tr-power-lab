@@ -1,5 +1,5 @@
 ---
-title: "Blog"
+title: "Articles"
 listing:
   contents: "*/index.qmd"
   sort: "date desc"

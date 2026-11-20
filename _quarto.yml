@@ -46,14 +46,8 @@ website:
             href: regulation/institutions.qmd
           - text: "Method and sources"
             href: regulation/method.qmd
-      - text: "Reports"
-        href: reports/index.qmd
-      - text: "Blog"
+      - text: "Articles"
         href: blog/index.qmd
-      - text: "Tools"
-        href: tools/index.qmd
-      - text: "Learn"
-        href: learn/index.qmd
     right:
       - text: "Methodology"
         href: methodology.qmd
