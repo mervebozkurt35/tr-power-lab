@@ -11,7 +11,8 @@ script does the daily work from the processed files alone:
   4. check the result and write data/processed/update_status.json (what the pages show as "data through").
 
 How deep each run goes (--mode, chosen from the date when it is "auto"):
-  daily    every day except Mondays and the 1st: adds the new day (and any days missing since the last run)
+  daily    every day except Mondays and the 1st: adds the new day and rewrites the day before it, because the run may start
+           soon after midnight, when the last hours of a day are not published yet (and adds any days missing since the last run)
   weekly   Mondays: rewrites the last 7 days, the week that just ended
   monthly  the 1st: rewrites the last 2 months (the previous month is final by then)
   deep     by hand: the last 6 months
@@ -428,7 +429,7 @@ def step_summary(end: date) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--mode", choices=["auto", "daily", "weekly", "monthly", "deep"], default="auto",
-                    help="how far back to rewrite: daily = add the new day, weekly = last 7 days, monthly = last 2 months, "
+                    help="how far back to rewrite: daily = add the new day and redo the day before, weekly = last 7 days, monthly = last 2 months, "
                          "deep = last 6 months; auto picks monthly on the 1st, weekly on Mondays, daily otherwise")
     ap.add_argument("--deep", action="store_true", help="same as --mode deep")
     ap.add_argument("--end", default=None, help="last day to fetch, default yesterday (Istanbul)")
@@ -446,7 +447,7 @@ def main() -> int:
     # rows from `window_from` on are replaced; older rows are never touched. EPİAŞ is downloaded in whole months
     # (the monthly files are built from a complete month), so the download always starts at the first of the
     # month before the month of window_from.
-    rewrite_from = {"daily": end, "weekly": end - timedelta(days=6),
+    rewrite_from = {"daily": end - timedelta(days=1), "weekly": end - timedelta(days=6),
                     "monthly": add_months(this_month, -1), "deep": add_months(this_month, -5)}[mode]
     # a gap since the last successful run widens the window so no day is skipped: start at the first missing day
     last_core = last_day_in(target / "core_daily.csv", "date")
