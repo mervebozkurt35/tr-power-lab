@@ -109,7 +109,7 @@ This is the gap a plant falls into when it leaves support, and it also sets what
 
 ## After 2030: why flexibility and asset management matter
 
-By the end of 2030 an estimated 6.7 GW of solar will have left support, and from mid-2031 the first licensed plants on the TL-indexed price follow. Each of them moves from a fixed support price to a price set hour by hour in a market that solar itself is pushing down at midday. Under the official capacity targets, Ember projects 52 TWh of solar in 2030<sup>[<a href="#ref-27">27</a>]</sup>, only about a third more than the 38.9 TWh solar produced from January to mid-November 2026: solar is already running ahead of the plan. More solar at the same hours means lower capture rates, not higher.
+By the end of 2030 an estimated 6.7 GW of solar will have left support, and from mid-2031 the first licensed plants on the TL-indexed price follow. Each of them moves from a fixed support price to a price set hour by hour in a market that solar itself is pushing down at midday. Under the official capacity targets, Ember projects 52 TWh of solar in 2030<sup>[<a href="#ref-27">27</a>]</sup>, only about a third more than the 38.9 TWh solar produced from January to mid-November 2026. More solar at the same hours means lower capture rates, not higher.
 
 For these plants, the value of the output depends less on the panel and more on when and how the energy is sold:
 
