@@ -5,11 +5,66 @@
       "last": "2026-11-20"
     },
     "core_daily.csv": {
+      "revisions": {
+        "values": 13,
+        "keys": 1,
+        "first": "2026-11-19",
+        "last": "2026-11-19",
+        "by_column": {
+          "biomass_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 1.5
+          },
+          "consumption_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.1
+          },
+          "embedded_gen_est_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.0
+          },
+          "gas_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.1
+          },
+          "geothermal_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.0
+          },
+          "hydro_dam_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.0
+          },
+          "hydro_river_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.1
+          },
+          "lignite_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.2
+          }
+        }
+      },
+      "revised_by_age": {
+        "to_3d": 1,
+        "4_14d": 0,
+        "15_31d": 0,
+        "32_62d": 0,
+        "over_62d": 0
+      },
       "level": "ok",
-      "rows": 5498,
+      "rows": 5499,
       "added": 1,
-      "changed": 0,
-      "last": "2026-11-19",
+      "changed": 1,
+      "last": "2026-11-20",
       "lag_days": 0
     },
     "core_monthly.csv": {
@@ -20,11 +75,31 @@
       "last": "2026-11"
     },
     "gas_daily.csv": {
+      "revisions": {
+        "values": 1,
+        "keys": 1,
+        "first": "2026-11-19",
+        "last": "2026-11-19",
+        "by_column": {
+          "gas_system_imbalance": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.0
+          }
+        }
+      },
+      "revised_by_age": {
+        "to_3d": 1,
+        "4_14d": 0,
+        "15_31d": 0,
+        "32_62d": 0,
+        "over_62d": 0
+      },
       "level": "ok",
-      "rows": 3028,
+      "rows": 3029,
       "added": 1,
-      "changed": 0,
-      "last": "2026-11-19",
+      "changed": 1,
+      "last": "2026-11-20",
       "lag_days": 0
     },
     "gas_monthly.csv": {
@@ -36,10 +111,10 @@
     },
     "balancing_daily.csv": {
       "level": "ok",
-      "rows": 5498,
+      "rows": 5499,
       "added": 1,
       "changed": 0,
-      "last": "2026-11-19",
+      "last": "2026-11-20",
       "lag_days": 0
     },
     "balancing_monthly.csv": {
@@ -50,19 +125,64 @@
       "last": "2026-11"
     },
     "wind_daily.csv": {
+      "revisions": {
+        "values": 1,
+        "keys": 1,
+        "first": "2026-11-19",
+        "last": "2026-11-19",
+        "by_column": {
+          "rt_gen_wind_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.0
+          }
+        }
+      },
+      "revised_by_age": {
+        "to_3d": 1,
+        "4_14d": 0,
+        "15_31d": 0,
+        "32_62d": 0,
+        "over_62d": 0
+      },
       "level": "ok",
-      "rows": 2817,
+      "rows": 2818,
       "added": 1,
-      "changed": 0,
-      "last": "2026-11-19",
+      "changed": 1,
+      "last": "2026-11-20",
       "lag_days": 0
     },
     "load_plan_daily.csv": {
+      "revisions": {
+        "values": 2,
+        "keys": 1,
+        "first": "2026-11-19",
+        "last": "2026-11-19",
+        "by_column": {
+          "consumption_mwh": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 0.1
+          },
+          "plan_error_pct": {
+            "values": 1,
+            "days": 1,
+            "max_abs_pct": 11.1
+          }
+        }
+      },
+      "revised_by_age": {
+        "to_3d": 1,
+        "4_14d": 0,
+        "15_31d": 0,
+        "32_62d": 0,
+        "over_62d": 0
+      },
       "level": "ok",
-      "rows": 5497,
+      "rows": 5498,
       "added": 1,
-      "changed": 0,
-      "last": "2026-11-19",
+      "changed": 1,
+      "last": "2026-11-20",
       "lag_days": 0
     },
     "ul_gen_daily.csv": {
@@ -83,14 +203,52 @@
       "level": "ok",
       "rows": 143,
       "added": 0,
-      "changed": 0,
+      "changed": 1,
       "last": "2026-11"
     },
     "congestion_province_monthly.csv": {
+      "revisions": {
+        "values": 18,
+        "keys": 4,
+        "first": "2026-11|KIRKLARELİ",
+        "last": "2026-11|ÇANAKKALE",
+        "by_column": {
+          "mcp_total_tl": {
+            "values": 4,
+            "days": 4,
+            "max_abs_pct": 38.4
+          },
+          "smp_total_tl": {
+            "values": 4,
+            "days": 4,
+            "max_abs_pct": 16.5
+          },
+          "mcp_down_tl": {
+            "values": 3,
+            "days": 3,
+            "max_abs_pct": 29.4
+          },
+          "smp_down_tl": {
+            "values": 3,
+            "days": 3,
+            "max_abs_pct": 12.0
+          },
+          "mcp_up_tl": {
+            "values": 2,
+            "days": 2,
+            "max_abs_pct": 46.7
+          },
+          "smp_up_tl": {
+            "values": 2,
+            "days": 2,
+            "max_abs_pct": 17.8
+          }
+        }
+      },
       "level": "ok",
       "rows": 11726,
       "added": 0,
-      "changed": 0,
+      "changed": 4,
       "last": "2026-11"
     },
     "line_capacity_daily.csv": {
@@ -100,15 +258,15 @@
     "line_events.csv": {
       "level": "ok",
       "rows": 1066,
-      "added": 1,
-      "changed": 1,
+      "added": 0,
+      "changed": 0,
       "last": "2026-11-19"
     },
     "ren_capacity_monthly.csv": {
       "level": "ok",
       "rows": 127,
       "added": 0,
-      "changed": 0,
+      "changed": 1,
       "last": "2026-11"
     }
   },
@@ -123,18 +281,18 @@
     "bilateral_euas: raw columns ['date', 'contractAmount']; using date = 'date', quantity = 'contractAmount'.",
     "ren_capacity: 1 rows have no source name and were left out."
   ],
-  "checked": "2026-11-20 15:10",
+  "checked": "2026-11-21 05:13",
   "timezone": "Europe/Istanbul",
-  "yesterday": "2026-11-19",
+  "yesterday": "2026-11-20",
   "data_through": {
-    "core_daily.csv": "2026-11-19",
+    "core_daily.csv": "2026-11-20",
     "core_monthly.csv": "2026-11",
-    "gas_daily.csv": "2026-11-19",
+    "gas_daily.csv": "2026-11-20",
     "gas_monthly.csv": "2026-11",
-    "balancing_daily.csv": "2026-11-19",
+    "balancing_daily.csv": "2026-11-20",
     "balancing_monthly.csv": "2026-11",
-    "wind_daily.csv": "2026-11-19",
-    "load_plan_daily.csv": "2026-11-19",
+    "wind_daily.csv": "2026-11-20",
+    "load_plan_daily.csv": "2026-11-20",
     "ul_gen_daily.csv": "2026-10-31",
     "ul_gen_monthly.csv": "2026-10",
     "congestion_monthly.csv": "2026-11",
