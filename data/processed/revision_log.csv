@@ -41,3 +41,7 @@ run_end,file,revised_days,oldest_age_days,to_3d,4_14d,15_31d,32_62d,over_62d
 2026-11-23,gas_daily.csv,1,1,1,0,0,0,0
 2026-11-23,wind_daily.csv,1,1,1,0,0,0,0
 2026-11-23,load_plan_daily.csv,1,1,1,0,0,0,0
+2026-11-24,core_daily.csv,1,1,1,0,0,0,0
+2026-11-24,gas_daily.csv,1,1,1,0,0,0,0
+2026-11-24,wind_daily.csv,1,1,1,0,0,0,0
+2026-11-24,load_plan_daily.csv,1,1,1,0,0,0,0
